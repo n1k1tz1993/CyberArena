@@ -118,8 +118,7 @@
    "name": "Ninjas in Pyjamas",
    "region": 1,
    "bonus": 4,
-   "logo": "t207n",
-   "fullLogo": true
+   "logo": "t207n"
   },
   {
    "id": 18,
@@ -237,10 +236,11 @@
   },
   {
    "id": 34,
-   "name": "Flash Wolves",
+   "name": "DetonatioN FocusMe",
    "region": 3,
    "bonus": 4,
-   "logo": "t404"
+   "logo": "t404d",
+   "fullLogo": true
   },
   {
    "id": 35,

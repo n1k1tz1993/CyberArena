@@ -829,6 +829,8 @@ function sanitizeTours() {
     if (a && (!a.v2 || !FORMATS[a.size] || !(a.ids || []).every(id => a.kind === 'pro' ? TM.has(id) : PL.has(id)))) T.active = null;
   }
   if (typeof PRO.edition !== 'number') PRO.edition = PRO.history.length;
+  const d = PRO.draft;
+  if (d && !(Array.isArray(d.teams) && d.teams.length === 24 && d.teams.every(id => TM.has(id)) && d.picks && Object.values(d.picks).every(id => PL.has(id)))) PRO.draft = null;
 }
 sanitizeTours();
 const tourStore = kind => kind === 'pro' ? PRO : ONE;
@@ -839,19 +841,10 @@ const tPlayer = (t, id) => t.kind === 'pro' ? PL.get(t.roster[id]) : PL.get(id);
 const tTeam = (t, id) => t.kind === 'pro' ? TM.get(id) : null;
 const tName = (t, id) => t.kind === 'pro' ? TM.get(id).name : PL.get(id).nickname;
 
-function tourNew(kind, size, ids) {
+function tourNew(kind, size, ids, roster) {
   const F = FORMATS[size], order = shuffle(ids);
-  const t = { v2: true, kind, size, ids: order, matches: [], champion: -1, groups: [], roster: {} };
-  if (kind === 'pro') { // автодрафт: команды в случайном порядке берут сильнейшего свободного игрока своего региона
-    const taken = new Set();
-    for (const tid of shuffle(ids)) {
-      const reg = TM.get(tid).region;
-      const pool = inRegion(reg).filter(p => !taken.has(p.id));
-      const best = pool.map(p => [p, p.power + Math.random() * 8]).sort((x, y) => y[1] - x[1])[0][0];
-      t.roster[tid] = best.id; taken.add(best.id);
-    }
-    PRO.edition++; t.edition = PRO.edition;
-  }
+  const t = { v2: true, kind, size, ids: order, matches: [], champion: -1, groups: [], roster: roster || {} };
+  if (kind === 'pro') { PRO.draft = null; PRO.edition++; t.edition = PRO.edition; }
   if (F.groups) {
     t.groups = order.slice();
     const per = [];
@@ -913,6 +906,7 @@ function tQuick(t, m) {
 function tSimStage(t) { const f = tNext(t); if (!f) return; let m, g = 0; while ((m = tNext(t)) && m.phase === f.phase && g++ < 300) tQuick(t, m); }
 function tStatus(kind) {
   const t = tourStore(kind).active;
+  if (!t && kind === 'pro' && PRO.draft) return `драфт · выбрано игроков: ${Object.keys(PRO.draft.picks).length} из 24`;
   if (!t) return kind === 'pro' ? '24 команды · группы и плей-офф' : 'без команд · 4, 8, 16 или 24 игрока';
   if (t.champion >= 0) return `завершён · победил ${tName(t, t.champion)}`;
   return `идёт · ${kind === 'pro' ? 'команд' : 'игроков'}: ${t.size} · сыграно матчей: ${t.matches.filter(m => m.played).length}`;
@@ -935,17 +929,56 @@ function showOneHome() {
 }
 function showProHome() {
   if (PRO.active) { showTour('pro'); return; }
+  if (PRO.draft) { showProDraft(); return; }
   const F = FORMATS[24];
   screen(topbar('ESL Pro League', showMenu) + `<div class="scroll esl-pro">${eslHead('pro', `Сезон ${PRO.edition + 1}`)}
     <div class="card"><b class="pro-y">24 команды</b><div class="dim" style="font-size:13px;margin-top:4px">${esc(F.desc)}</div>
-    <div class="dim" style="font-size:13px;margin-top:6px">Ты выбираешь 24 команды, игроков в них раздаёт автодрафт (каждая команда берёт игрока своего региона). Победитель — <b class="pro-y">чемпион мира по версии ESL</b>.</div></div>
+    <div class="dim" style="font-size:13px;margin-top:6px">Сначала приглашаешь 24 команды, потом на драфте сам выбираешь игрока для каждой из них. Победитель — <b class="pro-y">чемпион мира по версии ESL</b>.</div></div>
     <button class="btn pro-btn" ${on(() => showPick('pro', 24, []))}>ВЫБРАТЬ 24 КОМАНДЫ</button></div>`);
+}
+// Драфт Pro League: приглашённые команды по очереди (в порядке приглашения) выбирают по одному игроку. Выбор — за тобой.
+function showProDraft() {
+  const d = PRO.draft; if (!d) { showProHome(); return; }
+  const prev = app.querySelector('.scroll.pdraft'); const keep = prev ? prev.scrollTop : 0;
+  const taken = new Set(Object.values(d.picks));
+  const picker = d.teams.find(id => !d.picks[id]);
+  const done = !picker;
+  const n = d.teams.filter(id => d.picks[id]).length;
+  let armed = false;
+  const reset = `<button class="side-btn" ${on((e, el) => { if (!armed) { armed = true; el.textContent = 'точно?'; el.style.color = COL.bad; return; } PRO.draft = null; saveTour('pro'); showProHome(); })}>сброс</button>`;
+  let h = topbar('Pro League · драфт', showMenu, reset);
+  if (!done) {
+    const pt = TM.get(picker);
+    h += `<div class="picker pro">${logo(pt)}<div style="min-width:0"><small>ПИК ${n + 1} ИЗ 24 · ВЫБИРАЕТ</small><b class="ell">${esc(pt.name)}</b><span class="dim" style="font-size:12px">${esc(REG[pt.region])} · нажми на игрока, чтобы взять его в команду</span></div></div>`;
+  }
+  h += '<div class="scroll pdraft esl-pro">';
+  if (!done) {
+    const pr = TM.get(picker).region;
+    const regs = [pr, ...[0, 1, 2, 3, 4].filter(r => r !== pr)];
+    for (const r of regs) {
+      const av = inRegion(r).filter(p => !taken.has(p.id));
+      if (!av.length) continue;
+      h += `<div class="reg-h"><span class="bar" style="background:${RCOL[r]}"></span>${regionLogo(r)}<b style="color:${RCOL[r]}">${esc(REG[r].toUpperCase())}</b><span class="dim" style="font-size:12px">${r === pr ? 'регион команды · ' : ''}свободно ${av.length}</span></div><div class="dgrid">`;
+      for (const p of av) h += `<div class="dc" ${on(() => { d.picks[picker] = p.id; saveTour('pro'); showProDraft(); })}>${portrait(p, null)}<div class="nick ell">${esc(p.nickname)}</div><div class="sk">${esc(p.skill)}</div></div>`;
+      h += '</div>';
+    }
+  }
+  h += sec(`Составы · ${n} из 24`);
+  d.teams.forEach((id, k) => {
+    const t = TM.get(id), p = d.picks[id] ? PL.get(d.picks[id]) : null, now = id === picker;
+    h += `<div class="or ${now ? 'now' : ''}"><span class="n">${k + 1}</span>${logo(t)}<span class="nm ell">${esc(t.name)}</span>${p ? `<span class="pk">${esc(p.nickname)}${portrait(p, null)}</span>` : now ? '<span class="pk">выбирает…</span>' : ''}</div>`;
+  });
+  h += '</div><div class="bottom">';
+  if (done) h += `<button class="btn main pro-btn" ${on(() => { tourNew('pro', 24, d.teams, { ...d.picks }); showTour('pro'); })}>НАЧАТЬ PRO LEAGUE</button>`;
+  h += `<button class="btn" ${n ? on(() => { const last = [...d.teams].reverse().find(id => d.picks[id]); delete d.picks[last]; saveTour('pro'); showProDraft(); }) : 'disabled'}>Отменить последний выбор</button></div>`;
+  screen(h);
+  const sc = app.querySelector('.scroll.pdraft'); if (sc) sc.scrollTop = done ? 0 : keep;
 }
 function showPick(kind, size, sel) {
   const prev = app.querySelector('.scroll.cpick'); const keep = prev ? prev.scrollTop : 0;
   const toggle = id => { const i = sel.indexOf(id); if (i >= 0) sel.splice(i, 1); else if (sel.length < size) sel.push(id); showPick(kind, size, sel); };
   const back = kind === 'pro' ? showProHome : showOneHome;
-  let h = topbar(kind === 'pro' ? 'Pro League · выбор команд' : `ESL One · ${size} игроков`, back) + `<div class="scroll cpick ${kind === 'pro' ? 'esl-pro' : 'esl-one'}">`;
+  let h = topbar(kind === 'pro' ? 'Pro League · приглашение' : `ESL One · ${size} игроков`, back) + `<div class="scroll cpick ${kind === 'pro' ? 'esl-pro' : 'esl-one'}">`;
   for (let r = 0; r < 5; r++) {
     h += `<div class="reg-h"><span class="bar" style="background:${RCOL[r]}"></span>${regionLogo(r)}<b style="color:${RCOL[r]}">${esc(REG[r].toUpperCase())}</b></div>`;
     if (kind === 'pro') {
@@ -968,7 +1001,7 @@ function showPick(kind, size, sel) {
   h += `</div><div class="bottom"><div class="cup-count"><b>${sel.length}</b> из ${size} выбрано</div>
     <div class="row2"><button class="btn" ${on(() => showPick(kind, size, []))}>Очистить</button>
     <button class="btn" ${full ? 'disabled' : on(() => { const rest = shuffle(pool.filter(id => !sel.includes(id))); showPick(kind, size, sel.concat(rest.slice(0, size - sel.length))); })}>Добавить случайно</button></div>
-    <button class="btn main ${kind === 'pro' ? 'pro-btn' : ''}" ${full ? on(() => { tourNew(kind, size, sel); showTour(kind); }) : 'disabled'}>${full ? (kind === 'pro' ? 'АВТОДРАФТ И СТАРТ' : 'НАЧАТЬ ТУРНИР') : `Выбери ещё ${size - sel.length}`}</button></div>`;
+    <button class="btn main ${kind === 'pro' ? 'pro-btn' : ''}" ${full ? on(() => { if (kind === 'pro') { PRO.draft = { teams: sel.slice(), picks: {} }; saveTour('pro'); showProDraft(); } else { tourNew(kind, size, sel); showTour(kind); } }) : 'disabled'}>${full ? (kind === 'pro' ? 'К ДРАФТУ ИГРОКОВ' : 'НАЧАТЬ ТУРНИР') : `Выбери ещё ${size - sel.length}`}</button></div>`;
   screen(h);
   app.querySelector('.scroll.cpick').scrollTop = keep;
 }

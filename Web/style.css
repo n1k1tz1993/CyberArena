@@ -334,3 +334,6 @@ textarea:focus { outline: 2px solid var(--accent); }
 .vgrid.one { grid-template-columns: minmax(0, 1fr); width: min(100%, 260px); margin: 0 auto; }
 .vgrid .bm { min-width: 0; }
 .varr { text-align: center; color: var(--dim); font-size: 11px; line-height: 1; opacity: .6; }
+.picker.pro { background: #111; border-bottom: 2px solid var(--pro); }
+.picker.pro small { color: var(--pro); }
+.reg-h .dim { margin-left: auto; }
