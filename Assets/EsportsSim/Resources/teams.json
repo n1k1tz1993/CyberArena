@@ -380,14 +380,16 @@
    "name": "INTZ",
    "region": 0,
    "bonus": 2,
-   "logo": "t111"
+   "logo": "t111",
+   "fullLogo": true
   },
   {
    "id": 54,
    "name": "CNB eSports Club",
    "region": 0,
    "bonus": 1,
-   "logo": "t112"
+   "logo": "t112",
+   "fullLogo": true
   }
  ]
 }
