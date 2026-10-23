@@ -151,10 +151,11 @@
   },
   {
    "id": 22,
-   "name": "Gambit",
+   "name": "Зенит",
    "region": 2,
-   "bonus": 3,
-   "logo": "t302"
+   "bonus": 4,
+   "logo": "t314",
+   "fullLogo": true
   },
   {
    "id": 23,
@@ -186,10 +187,10 @@
   },
   {
    "id": 27,
-   "name": "Team Just",
+   "name": "ЦСКА",
    "region": 2,
-   "bonus": 5,
-   "logo": "t307"
+   "bonus": 3,
+   "logo": "t313"
   },
   {
    "id": 28,
