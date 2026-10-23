@@ -256,3 +256,27 @@ textarea:focus { outline: 2px solid var(--accent); }
 .sync.cloud { color: var(--good); }
 .sync.error { color: var(--gold); }
 .pt .badge b { font: 400 clamp(9px, 3.2vw, 22px) var(--display); color: var(--ink); }
+/* ---------- турнир вне сезона ---------- */
+.menu .b3 { background: var(--gold); color: var(--ink); flex-direction: column; }
+.menu .b3 small { color: #0e1220b0; }
+.cup-n { width: 56px; height: 56px; flex: none; border-radius: 14px; background: var(--panel2); display: grid; place-items: center; font: 26px var(--display); color: var(--gold); }
+.pc.off { opacity: .35; }
+.cup-count { text-align: center; font-size: 14px; color: var(--dim); }
+.cup-count b { font: 20px var(--display); color: var(--gold); }
+.brk { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
+.bcol { flex: none; width: 138px; display: flex; flex-direction: column; }
+.bh { font-size: 11px; font-weight: 700; color: var(--gold); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; white-space: nowrap; }
+.bl { flex: 1; display: flex; flex-direction: column; justify-content: space-around; gap: 8px; }
+.bm { background: var(--panel); border-radius: 10px; overflow: hidden; border: 1px solid #ffffff10; }
+.bm.next { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.bm.ghost { opacity: .45; }
+.bp { display: flex; align-items: center; gap: 6px; padding: 5px 8px; font-size: 13px; min-height: 28px; }
+.bp + .bp { border-top: 1px solid #ffffff10; }
+.bp .flagi { width: 20px; height: 13px; }
+.bp .ell { flex: 1; }
+.bp b { font-family: var(--display); font-weight: 400; min-width: 10px; text-align: right; }
+.bp.w { color: var(--text); font-weight: 700; background: #4cd97b18; }
+.bp.l { color: var(--dim); }
+.tr2 > .pt { width: 40px; border-width: 2px; }
+.scroll > * { flex-shrink: 0; }
+.hist .s { width: auto; white-space: nowrap; }

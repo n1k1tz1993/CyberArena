@@ -68,12 +68,12 @@ function finishRound(f1, f2) { let g = 0; while (f1.hp > 0 && f2.hp > 0 && g++ <
 function simMatch(a, ta, b, tb) { let s1 = 0, s2 = 0; while (s1 < 2 && s2 < 2) { if (finishRound(fighter(a, ta), fighter(b, tb)) === 1) s1++; else s2++; } return [s1, s2]; }
 
 // ================= СЕЗОН =================
-const ST = { League: 0, PlayIn: 1, Semi: 2, Final: 3, WC: 4, WG: 5, WQ: 6, WS: 7, WF: 8 };
+const ST = { League: 0, PlayIn: 1, Semi: 2, Final: 3, WC: 4, WG: 5, WQ: 6, WS: 7, WF: 8, WC1: 9 };
 const RS = { NotStarted: 0, Draft: 1, League: 2, PlayIn: 3, Semi: 4, Final: 5, Done: 6 };
 const PH = { Regions: 0, WC: 1, WG: 2, WQ: 3, WS: 4, WF: 5, Finished: 6 };
 const SKEY = 'ca_season_v1';
 let D;
-const fresh = (n, ht, hp) => ({ number: n, phase: 0, regionState: [0, 0, 0, 0, 0], matches: [], draftPlayers: [], draftTeams: [], qualified: Array(15).fill(-1), wcQueue: [], wcNext: 0, wcWinner: -1, groups: [], champion: -1, championPlayer: '', historyTeams: ht || [], historyPlayers: hp || [] });
+const fresh = (n, ht, hp) => ({ number: n, phase: 0, regionState: [0, 0, 0, 0, 0], matches: [], draftPlayers: [], draftTeams: [], qualified: Array(15).fill(-1), wcQueue: [], wcNext: 0, wcWinner: -1, wcBye: -1, groups: [], champion: -1, championPlayer: '', historyTeams: ht || [], historyPlayers: hp || [] });
 function loadSeason() {
   D = store.get(SKEY, null);
   const ok = D && Array.isArray(D.matches) && Array.isArray(D.regionState) && D.regionState.length === 5 && Array.isArray(D.draftPlayers)
@@ -112,29 +112,11 @@ const S = {
   autoDraft(r) { let g = 0; while (D.regionState[r] === RS.Draft && g++ < 100 && S.autoPick(r)) { } },
   matches: (st, g) => D.matches.filter(m => m.stage === st && (g === undefined || m.group === g)),
   nextInRegion: r => D.matches.find(m => !m.played && m.group === r && m.stage <= ST.Final) || null,
-  nextWC: () => D.matches.find(m => !m.played && m.stage === ST.WC) || null,
-  nextWorlds: () => D.matches.find(m => !m.played && m.stage >= ST.WG) || null,
+  nextWC: () => D.matches.find(m => !m.played && (m.stage === ST.WC || m.stage === ST.WC1)) || null,
+  nextWorlds: () => D.matches.find(m => !m.played && m.stage >= ST.WG && m.stage <= ST.WF) || null,
   qualified: (r, place) => D.qualified[r * 3 + place],
   groupTeams(st, g) { const ids = []; for (const m of S.matches(st, g)) { if (!ids.includes(m.t1)) ids.push(m.t1); if (!ids.includes(m.t2)) ids.push(m.t2); } return ids; },
-  standings(st, g) {
-    const ms = S.matches(st, g);
-    const tab = new Map(S.groupTeams(st, g).map(id => [id, { team: id, played: 0, wins: 0, losses: 0, mw: 0, ml: 0 }]));
-    for (const m of ms) if (m.played) {
-      const a = tab.get(m.t1), b = tab.get(m.t2);
-      a.played++; b.played++; a.mw += m.s1; a.ml += m.s2; b.mw += m.s2; b.ml += m.s1;
-      if (m.s1 > m.s2) { a.wins++; b.losses++; } else { b.wins++; a.losses++; }
-    }
-    return [...tab.values()].sort((x, y) => {
-      if (x.team === y.team) return 0;
-      if (x.wins !== y.wins) return y.wins - x.wins;
-      const dx = x.mw - x.ml, dy = y.mw - y.ml; if (dx !== dy) return dy - dx;
-      if (x.mw !== y.mw) return y.mw - x.mw;
-      let h = 0;
-      for (const m of ms) if (m.played && ((m.t1 === x.team && m.t2 === y.team) || (m.t1 === y.team && m.t2 === x.team))) h += win(m) === x.team ? -1 : 1;
-      if (h) return h;
-      return x.team - y.team;
-    });
-  },
+  standings(st, g) { return standingsOf(S.matches(st, g)); },
   regionStateName(r) {
     switch (D.regionState[r]) {
       case RS.NotStarted: return 'не начат';
@@ -164,7 +146,8 @@ const S = {
       case ST.PlayIn: return `${reg} · плей-ин`;
       case ST.Semi: return `${reg} · полуфинал`;
       case ST.Final: return m.kind === 1 ? `${reg} · матч за 3-е место` : `${reg} · финал`;
-      case ST.WC: return m.kind === 1 ? 'Wild Card · финал' : 'Wild Card';
+      case ST.WC: return m.kind === 1 ? 'Wild Card · финал' : 'Wild Card · царь горы';
+      case ST.WC1: return 'Wild Card · первый этап';
       case ST.WG: return `ЧМ · группа ${S.letter(m.group)}`;
       case ST.WQ: return 'ЧМ · четвертьфинал';
       case ST.WS: return 'ЧМ · полуфинал';
@@ -176,6 +159,7 @@ const S = {
     m.s1 = s1; m.s2 = s2; m.played = true;
     if (m.stage <= ST.Final) advanceRegion(m.group);
     else if (m.stage === ST.WC) advanceWC(m);
+    else if (m.stage === ST.WC1) advanceWC1();
     else advanceWorlds();
     saveSeason();
   },
@@ -186,12 +170,33 @@ const S = {
     S.report(m, x, y);
   },
   simRegionStage(r) { const st = D.regionState[r]; if (st < RS.League || st === RS.Done) return; let m, g = 0; while (D.regionState[r] === st && (m = S.nextInRegion(r)) && g++ < 500) S.quickSim(m); },
-  simWC() { let m, g = 0; while (D.phase === PH.WC && (m = S.nextWC()) && g++ < 500) S.quickSim(m); },
+  simWC() { const f = S.nextWC(); if (!f) return; let m, g = 0; while (D.phase === PH.WC && (m = S.nextWC()) && m.stage === f.stage && g++ < 500) S.quickSim(m); },
+  wcStage1Left: () => S.matches(ST.WC1).filter(m => !m.played).length,
   simWorldsStage() { const ph = D.phase; let m, g = 0; while (D.phase === ph && (m = S.nextWorlds()) && g++ < 500) S.quickSim(m); },
   wcWaiting: () => Math.max(0, D.wcQueue.length - D.wcNext),
 };
 const win = m => m.s1 > m.s2 ? m.t1 : m.t2;
 const lose = m => m.s1 > m.s2 ? m.t2 : m.t1;
+// Таблица группы по сыгранным матчам (t1/t2 — команды или игроки): победы → разница карт → карты → личные встречи.
+function standingsOf(ms) {
+  const ids = []; for (const m of ms) { if (!ids.includes(m.t1)) ids.push(m.t1); if (!ids.includes(m.t2)) ids.push(m.t2); }
+  const tab = new Map(ids.map(id => [id, { team: id, played: 0, wins: 0, losses: 0, mw: 0, ml: 0 }]));
+  for (const m of ms) if (m.played) {
+    const a = tab.get(m.t1), b = tab.get(m.t2);
+    a.played++; b.played++; a.mw += m.s1; a.ml += m.s2; b.mw += m.s2; b.ml += m.s1;
+    if (m.s1 > m.s2) { a.wins++; b.losses++; } else { b.wins++; a.losses++; }
+  }
+  return [...tab.values()].sort((x, y) => {
+    if (x.team === y.team) return 0;
+    if (x.wins !== y.wins) return y.wins - x.wins;
+    const dx = x.mw - x.ml, dy = y.mw - y.ml; if (dx !== dy) return dy - dx;
+    if (x.mw !== y.mw) return y.mw - x.mw;
+    let h = 0;
+    for (const m of ms) if (m.played && ((m.t1 === x.team && m.t2 === y.team) || (m.t1 === y.team && m.t2 === x.team))) h += win(m) === x.team ? -1 : 1;
+    if (h) return h;
+    return x.team - y.team;
+  });
+}
 const addM = (stage, group, t1, t2, kind = 0) => D.matches.push({ stage, group, t1, t2, s1: 0, s2: 0, played: false, kind });
 
 function roundRobin(ids, stage, group, swap) {
@@ -241,11 +246,26 @@ function advanceRegion(r) {
     }
   }
 }
+// Wild Card. Первый этап: все команды без путёвки разбиваются на случайные пары, проигравшие вылетают
+// (36 → 18; при нечётном числе одна команда проходит без игры). Затем «царь горы» среди оставшихся.
 function startWC() {
   D.phase = PH.WC;
-  D.wcQueue = shuffle(DATA.teams.map(t => t.id).filter(id => !D.qualified.includes(id)));
+  const all = shuffle(DATA.teams.map(t => t.id).filter(id => !D.qualified.includes(id)));
+  D.wcBye = all.length % 2 ? all.pop() : -1;
+  D.wcQueue = []; D.wcNext = 0;
+  for (let i = 0; i < all.length; i += 2) addM(ST.WC1, 0, all[i], all[i + 1]);
+}
+function advanceWC1() {
+  const ms = S.matches(ST.WC1);
+  if (ms.some(m => !m.played)) return;
+  const alive = ms.map(win); if (D.wcBye >= 0) alive.push(D.wcBye);
+  startKing(shuffle(alive));
+}
+function startKing(queue) {
+  D.wcQueue = queue;
+  if (queue.length === 1) { D.wcWinner = queue[0]; drawWorlds(); return; }
   D.wcNext = 2;
-  addM(ST.WC, 0, D.wcQueue[0], D.wcQueue[1], D.wcQueue.length === 2 ? 1 : 0);
+  addM(ST.WC, 0, queue[0], queue[1], queue.length === 2 ? 1 : 0);
 }
 function advanceWC(m) {
   if (D.wcNext < D.wcQueue.length) {
@@ -256,12 +276,38 @@ function advanceWC(m) {
   D.wcWinner = win(m);
   drawWorlds();
 }
+// Посев ЧМ: в каждой группе первое место занимает чемпион одной из лиг LCK, LCS, LEC, LPL.
+// Остальные 12 команд (чемпион КЛ, 2-е и 3-и места, победитель Wild Card) случайно расходятся по группам так,
+// чтобы две команды одного региона не попали в одну группу.
+const SEED_LEAGUES = [4, 0, 1, 3]; // LCK, LCS, LEC, LPL
+function drawGroups() {
+  const champs = shuffle(SEED_LEAGUES.map(r => S.qualified(r, 0)));
+  const rest = [S.qualified(2, 0)];
+  for (let r = 0; r < 5; r++) rest.push(S.qualified(r, 1), S.qualified(r, 2));
+  rest.push(D.wcWinner);
+  const reg = id => TM.get(id).region;
+  const cnt = {}; rest.forEach(id => cnt[reg(id)] = (cnt[reg(id)] || 0) + 1);
+  // сначала команды регионов, где их больше всего (их сложнее разместить)
+  const order = shuffle(rest).sort((a, b) => cnt[reg(b)] - cnt[reg(a)]);
+  const groups = champs.map(c => [c]);
+  const place = i => {
+    if (i === order.length) return true;
+    for (const g of shuffle([0, 1, 2, 3])) {
+      if (groups[g].length < 4 && !groups[g].some(x => reg(x) === reg(order[i]))) {
+        groups[g].push(order[i]);
+        if (place(i + 1)) return true;
+        groups[g].pop();
+      }
+    }
+    return false;
+  };
+  if (!place(0)) { // запасной вариант (не должен понадобиться): просто по порядку
+    const flat = shuffle(rest); for (let g = 0; g < 4; g++) groups[g] = [champs[g], ...flat.slice(g * 3, g * 3 + 3)];
+  }
+  return groups.map(g => [g[0], ...shuffle(g.slice(1))]);
+}
 function drawWorlds() {
-  const pot = place => shuffle([0, 1, 2, 3, 4].map(r => S.qualified(r, place)));
-  const f = pot(0), s = pot(1), t = pot(2);
-  const p4 = shuffle([f[4], s[4], t[4], D.wcWinner]);
-  D.groups = [];
-  for (let g = 0; g < 4; g++) D.groups.push(f[g], s[g], t[g], p4[g]);
+  D.groups = drawGroups().flat();
   D.phase = PH.WG;
   const per = [];
   for (let g = 0; g < 4; g++) {
@@ -345,6 +391,7 @@ function showMenu() {
     <div class="brand"><h2>КИБЕР<br>АРЕНА</h2><p>симулятор киберспортивных турниров</p></div>
     <button class="btn b1" ${on(showSelect)}>СВОБОДНЫЙ БОЙ</button>
     <button class="btn b2" ${on(showSeason)}>СЕЗОН ${D.number}<small>${esc(S.phaseName())}</small></button>
+    <button class="btn b3" ${on(showCupHome)}>ТУРНИР ВНЕ СЕЗОНА<small>${esc(cupStatus())}</small></button>
     <button class="btn" ${on(() => showSettings(0))}>НАСТРОЙКИ</button>
     ${last}
     <div class="sync" id="sync">${syncText()}</div>
@@ -413,7 +460,7 @@ function sideHtml(n, p, t) {
   return `<div class="side s${n}"><div class="ph">${portrait(p, t, c)}</div><div class="info">
     <div class="hp"><div class="tr"><div class="fill" style="width:100%"></div></div><span>100</span></div>
     <div class="nk">${flagIcon(p)}<b class="ell" style="color:${c}">${esc(p.nickname)}</b></div>
-    ${teamTag(t)}
+    ${t ? teamTag(t) : ''}
     <div class="rg" style="color:${RCOL[p.region]}">${esc(REG[p.region])}</div>
     <div class="sk">${esc(p.skill)}</div>
     <div class="acts">${ACT.map(a => `<i>${a[1]}</i>`).join('')}</div>
@@ -517,7 +564,7 @@ function showResult(m, a, ta, b, tb, s1, s2, title, onFinished, onBack, rematch)
   const d = document.createElement('div');
   d.className = 'result';
   d.innerHTML = `<h2>ПОБЕДИТЕЛЬ</h2>${portrait(w, wt, COL.gold)}<div class="wn" style="color:${wc}">${esc(w.nickname)}</div>
-    <div class="acc">${esc(w.skill)}</div>${teamTag(wt)}
+    <div class="acc">${esc(w.skill)}</div>${wt ? teamTag(wt) : ''}
     <div class="score"><span style="color:${COL.p1}">${esc(a.nickname)}</span><b>${s1} : ${s2}</b><span style="color:${COL.p2}">${esc(b.nickname)}</span></div>
     ${rematch ? `<button class="btn" ${on(() => startMatch(a, ta, b, tb, title, onFinished, onBack, true))}>РЕВАНШ</button>` : ''}
     <button class="btn main" ${on(() => onFinished(s1, s2))}>ДАЛЕЕ</button>`;
@@ -552,7 +599,11 @@ function regionCard(r) {
 }
 function wcCard() {
   const locked = D.phase === PH.Regions, done = D.phase > PH.WC;
-  let sub = locked ? 'откроется, когда будут сыграны все 5 регионов' : !done ? `«царь горы» · ждут своей очереди: ${S.wcWaiting()}` : 'победитель — 16-я команда чемпионата мира';
+  const st1 = S.matches(ST.WC1), left1 = S.wcStage1Left();
+  let sub = locked ? 'откроется, когда будут сыграны все 5 регионов'
+    : done ? 'победитель — 16-я команда чемпионата мира'
+    : st1.length && left1 ? `первый этап · сыграно ${st1.length - left1} из ${st1.length}`
+    : `«царь горы» · ждут своей очереди: ${S.wcWaiting()}`;
   let right = '';
   if (done) { const t = TM.get(D.wcWinner), p = S.playerOf(D.wcWinner); right = `<div class="wcr">${logo(t)}${portrait(p, null, COL.gold)}</div>`; }
   return `<div class="card ${locked ? 'locked' : 'tap'} ${done ? 'grey' : ''}" ${locked ? '' : on(showWildCard)}><div class="rc"><div class="tx"><b class="gold">WILD CARD</b><span class="${locked ? 'dim' : ''}">${sub}</span></div>${right}${!locked && !done ? '<span class="chev">›</span>' : ''}</div></div>`;
@@ -640,15 +691,19 @@ function showDraft(r) {
 
 function showWildCard() {
   const next = D.phase === PH.WC ? S.nextWC() : null;
-  const ms = S.matches(ST.WC);
-  let h = topbar('Wild Card', showSeason) + `<div class="scroll"><div class="card alt dim">«Царь горы»: победитель остаётся, проигравший вылетает, его место занимает следующая команда. Последний матч — финал. Победитель едет на чемпионат мира 16-й командой.</div>`;
+  const ms = S.matches(ST.WC), st1 = S.matches(ST.WC1), left1 = S.wcStage1Left();
+  let h = topbar('Wild Card', showSeason) + `<div class="scroll"><div class="card alt dim" style="font-size:13px"><b class="gold">Первый этап.</b> Все команды без путёвки разбиты на случайные пары, проигравшие вылетают — остаётся половина.<br><b class="gold">Царь горы.</b> Победитель матча остаётся, проигравший вылетает, его место занимает следующая команда. Последний матч — финал. Победитель едет на чемпионат мира 16-й командой.</div>`;
   const holderBox = (label, tid, extra) => { const t = TM.get(tid), p = S.playerOf(tid); return `<div class="card"><div class="gold" style="font:14px var(--display);margin-bottom:8px">${label}</div><div class="champ-line" style="margin:0">${logo(t, '')}${portrait(p, t, COL.gold)}<div class="who"><b class="ell">${esc(t.name)}</b><span>${esc(p ? p.nickname : '')}${extra}</span></div></div></div>`; };
   if (D.wcWinner >= 0) h += holderBox('ПОБЕДИТЕЛЬ WILD CARD', D.wcWinner, '');
+  else if (next && next.stage === ST.WC1) {
+    h += `<div class="card"><div class="gold" style="font:14px var(--display)">ПЕРВЫЙ ЭТАП</div><span class="dim">сыграно ${st1.length - left1} из ${st1.length} · дальше пройдут ${st1.length + (D.wcBye >= 0 ? 1 : 0)} команд${D.wcBye >= 0 ? ` (${esc(TM.get(D.wcBye).name)} — без игры)` : ''}</span></div>`;
+  }
   else if (next) {
     let streak = 0; for (let i = ms.length - 1; i >= 0 && ms[i].played && win(ms[i]) === next.t1; i--) streak++;
     h += holderBox('ЦАРЬ ГОРЫ', next.t1, ` · побед подряд: ${streak} · ждут: ${S.wcWaiting()}`);
   }
-  if (ms.length) { h += sec(`Матчи · ${ms.filter(m => m.played).length} сыграно`); for (let i = ms.length - 1; i >= 0; i--) h += matchRow(ms[i], ms[i].kind === 1 ? 'Финал Wild Card' : null, ms[i] === next); }
+  if (ms.length) { h += sec(`Царь горы · ${ms.filter(m => m.played).length} сыграно`); for (let i = ms.length - 1; i >= 0; i--) h += matchRow(ms[i], ms[i].kind === 1 ? 'Финал Wild Card' : null, ms[i] === next); }
+  if (st1.length) { h += sec(`Первый этап · ${st1.length - left1} из ${st1.length}`); st1.filter(m => !m.played).concat(st1.filter(m => m.played)).forEach(m => h += matchRow(m, null, m === next)); }
   if (D.phase === PH.WC && D.wcNext < D.wcQueue.length) {
     h += sec('Очередь');
     D.wcQueue.slice(D.wcNext).forEach(id => { const t = TM.get(id); h += `<div class="or">${logo(t)}<span class="nm ell">${esc(t.name)} <small>${playerLabel(S.playerOf(id))} · ${esc(REG[t.region])}</small></span></div>`; });
@@ -698,6 +753,188 @@ function historyBlock() {
     out += `<div class="hist"><span class="s">Сезон ${no}</span>${logo(t)}<b class="ell" style="flex:1">${esc(t.name)}</b><span class="dim">${esc(who)}</span></div>`;
   }
   return out;
+}
+
+// ================= ТУРНИР ВНЕ СЕЗОНА =================
+// Игроки без команд (сила = только сила игрока). 8 игроков — double elimination, 16 — 4 группы по 4 (два круга) + плей-офф.
+const CKEY = 'ca_cup_v1';
+let CUP = store.get(CKEY, null) || { active: null, history: [] };
+if (!Array.isArray(CUP.history)) CUP.history = [];
+if (CUP.active && !(CUP.active.players || []).every(id => PL.has(id))) CUP.active = null;
+const saveCup = () => { store.set(CKEY, CUP); cloudSave('cup'); };
+
+// Сетка double elimination на 8: откуда берутся участники каждого матча (W — победитель, L — проигравший).
+const DE8 = [
+  ['WB1a', 'wb1', 'Верхняя сетка · 1/4', 0, 1], ['WB1b', 'wb1', 'Верхняя сетка · 1/4', 2, 3],
+  ['WB1c', 'wb1', 'Верхняя сетка · 1/4', 4, 5], ['WB1d', 'wb1', 'Верхняя сетка · 1/4', 6, 7],
+  ['WB2a', 'wb2', 'Полуфинал верхней сетки', 'W:WB1a', 'W:WB1b'], ['WB2b', 'wb2', 'Полуфинал верхней сетки', 'W:WB1c', 'W:WB1d'],
+  ['LB1a', 'lb1', 'Нижняя сетка · раунд 1', 'L:WB1a', 'L:WB1b'], ['LB1b', 'lb1', 'Нижняя сетка · раунд 1', 'L:WB1c', 'L:WB1d'],
+  ['LB2a', 'lb2', 'Нижняя сетка · раунд 2', 'W:LB1a', 'L:WB2b'], ['LB2b', 'lb2', 'Нижняя сетка · раунд 2', 'W:LB1b', 'L:WB2a'],
+  ['WBF', 'wbf', 'Финал верхней сетки', 'W:WB2a', 'W:WB2b'],
+  ['LB3', 'lb3', 'Полуфинал нижней сетки', 'W:LB2a', 'W:LB2b'],
+  ['LBF', 'lbf', 'Финал нижней сетки', 'W:LB3', 'L:WBF'],
+  ['GF', 'gf', 'Гранд-финал', 'W:WBF', 'W:LBF'],
+];
+const QF16 = [[0, 0, 1, 1], [1, 0, 0, 1], [2, 0, 3, 1], [3, 0, 2, 1]]; // A1–B2, B1–A2, C1–D2, D1–C2
+
+function cupNew(size, ids) {
+  const pl = shuffle(ids);
+  const c = { size, players: pl, matches: [], champion: -1, groups: [] };
+  if (size === 8) {
+    for (const [key, phase, label, a, b] of DE8)
+      c.matches.push({ key, phase, label, src: [a, b], t1: typeof a === 'number' ? pl[a] : -1, t2: typeof b === 'number' ? pl[b] : -1, s1: 0, s2: 0, played: false });
+  } else {
+    c.groups = pl.slice();
+    const per = [];
+    for (let g = 0; g < 4; g++) {
+      const ids4 = pl.slice(g * 4, g * 4 + 4);
+      per.push([...roundRobin(ids4, 0, g, false), ...roundRobin(ids4, 0, g, true)]);
+    }
+    for (let k = 0; k < per[0].length; k += 2) for (let g = 0; g < 4; g++)
+      per[g].slice(k, k + 2).forEach(m => c.matches.push({ key: 'G' + g + '_' + c.matches.length, phase: 'grp', group: g, label: 'Группа ' + 'ABCD'[g], t1: m.t1, t2: m.t2, s1: 0, s2: 0, played: false }));
+  }
+  CUP.active = c; saveCup();
+}
+const cupM = key => CUP.active.matches.find(m => m.key === key);
+function cupResolve() {
+  for (const m of CUP.active.matches) if (!m.played && m.src) {
+    ['t1', 't2'].forEach((side, i) => {
+      const s = m.src[i]; if (typeof s !== 'string') return;
+      const [wl, key] = s.split(':'); const src = cupM(key);
+      m[side] = src && src.played ? (wl === 'W' ? win(src) : lose(src)) : -1;
+    });
+  }
+}
+function cupNext() {
+  const c = CUP.active; if (!c || c.champion >= 0) return null;
+  cupResolve();
+  return c.matches.find(m => !m.played && m.t1 >= 0 && m.t2 >= 0) || null;
+}
+const cupGroupMatches = g => CUP.active.matches.filter(m => m.phase === 'grp' && m.group === g);
+function cupAdvance(m) {
+  const c = CUP.active;
+  const add = (key, phase, label, t1, t2) => c.matches.push({ key, phase, label, t1, t2, s1: 0, s2: 0, played: false });
+  if (c.size === 8) {
+    if (m.key === 'GF') { if (win(m) === m.t2) add('GF2', 'gf2', 'Гранд-финал · перезапуск сетки', m.t1, m.t2); else c.champion = win(m); }
+    if (m.key === 'GF2') c.champion = win(m);
+    return;
+  }
+  const left = ph => c.matches.some(x => x.phase === ph && !x.played);
+  if (m.phase === 'grp' && !left('grp')) {
+    const top = [0, 1, 2, 3].map(g => standingsOf(cupGroupMatches(g)).map(s => s.team));
+    QF16.forEach(([ga, pa, gb, pb], i) => add('QF' + i, 'qf', `Четвертьфинал · ${'ABCD'[ga]}${pa + 1} – ${'ABCD'[gb]}${pb + 1}`, top[ga][pa], top[gb][pb]));
+  } else if (m.phase === 'qf' && !left('qf')) {
+    const q = i => win(cupM('QF' + i));
+    add('SF0', 'sf', 'Полуфинал', q(0), q(2)); add('SF1', 'sf', 'Полуфинал', q(1), q(3));
+  } else if (m.phase === 'sf' && !left('sf')) add('F', 'f', 'Финал', win(cupM('SF0')), win(cupM('SF1')));
+  else if (m.phase === 'f') c.champion = win(m);
+}
+function cupReport(m, s1, s2) {
+  if (m.played) return;
+  m.s1 = s1; m.s2 = s2; m.played = true;
+  cupAdvance(m);
+  const c = CUP.active;
+  if (c.champion >= 0) { CUP.history.push({ size: c.size, player: c.champion }); if (CUP.history.length > 30) CUP.history.shift(); }
+  saveCup();
+}
+function cupQuick(m) { const [x, y] = simMatch(PL.get(m.t1), null, PL.get(m.t2), null); cupReport(m, x, y); }
+function cupSimStage() { const f = cupNext(); if (!f) return; let m, g = 0; while ((m = cupNext()) && m.phase === f.phase && g++ < 200) cupQuick(m); }
+function cupStatus() {
+  const c = CUP.active;
+  if (!c) return 'без команд · 8 или 16 игроков';
+  if (c.champion >= 0) return `завершён · победил ${PL.get(c.champion).nickname}`;
+  const n = c.matches.filter(m => m.played).length;
+  return `идёт · ${c.size} игроков · сыграно матчей: ${n}`;
+}
+
+// ---------- экраны ----------
+function showCupHome() {
+  if (CUP.active) { showCup(); return; }
+  let h = topbar('Турнир вне сезона', showMenu) + `<div class="scroll">
+    <div class="card alt dim" style="font-size:13px">Играют только игроки, без команд — побеждает чистая сила. Выбери формат, потом участников.</div>
+    <div class="card tap" ${on(() => showCupPick(8, []))}><div class="rc"><div class="cup-n">8</div><div class="tx"><b>8 игроков</b><span class="acc">Double Elimination: верхняя и нижняя сетка, гранд-финал</span></div><span class="chev">›</span></div></div>
+    <div class="card tap" ${on(() => showCupPick(16, []))}><div class="rc"><div class="cup-n">16</div><div class="tx"><b>16 игроков</b><span class="acc">4 группы по 4 (два круга), затем плей-офф как на ЧМ</span></div><span class="chev">›</span></div></div>
+    ${cupHistory()}</div>`;
+  screen(h);
+}
+function cupHistory() {
+  if (!CUP.history.length) return '';
+  let h = sec('Победители турниров');
+  CUP.history.slice(-10).reverse().forEach(x => { const p = PL.get(x.player); if (p) h += `<div class="hist"><span class="s">${x.size} игроков</span><span class="flagi">${flagImg(p)}</span><b class="ell" style="flex:1">${esc(p.nickname)}</b><span class="dim">${esc(REG_SHORT[p.region])}</span></div>`; });
+  return h;
+}
+function showCupPick(size, sel) {
+  const prev = app.querySelector('.scroll.cpick'); const keep = prev ? prev.scrollTop : 0;
+  const toggle = id => { const i = sel.indexOf(id); if (i >= 0) sel.splice(i, 1); else if (sel.length < size) sel.push(id); showCupPick(size, sel); };
+  let h = topbar(`Турнир · ${size} игроков`, showCupHome) + '<div class="scroll cpick">';
+  for (let r = 0; r < 5; r++) {
+    h += `<div class="reg-h"><span class="bar" style="background:${RCOL[r]}"></span>${regionLogo(r)}<b style="color:${RCOL[r]}">${esc(REG[r].toUpperCase())}</b></div><div class="pgrid">`;
+    for (const p of inRegion(r)) {
+      const on1 = sel.includes(p.id);
+      h += `<div class="pc ${!on1 && sel.length >= size ? 'off' : ''}" ${on(() => toggle(p.id))}>${portrait(p, null, on1 ? COL.gold : COL.panel2)}${on1 ? '<span class="num">✓</span>' : ''}<div class="nick ell">${esc(p.nickname)}</div></div>`;
+    }
+    h += '</div>';
+  }
+  const full = sel.length === size;
+  h += `</div><div class="bottom"><div class="cup-count"><b>${sel.length}</b> из ${size} выбрано</div>
+    <div class="row2"><button class="btn" ${on(() => showCupPick(size, []))}>Очистить</button>
+    <button class="btn" ${full ? 'disabled' : on(() => { const rest = shuffle(DATA.players.map(p => p.id).filter(id => !sel.includes(id))); showCupPick(size, sel.concat(rest.slice(0, size - sel.length))); })}>Добавить случайно</button></div>
+    <button class="btn main" ${full ? on(() => { cupNew(size, sel); showCup(); }) : 'disabled'}>${full ? 'НАЧАТЬ ТУРНИР' : `Выбери ещё ${size - sel.length}`}</button></div>`;
+  screen(h);
+  app.querySelector('.scroll.cpick').scrollTop = keep;
+}
+function bp(m, side) {
+  const id = m[side], p = id >= 0 ? PL.get(id) : null;
+  const sc = side === 't1' ? m.s1 : m.s2;
+  const w = m.played && win(m) === id, l = m.played && !w;
+  return `<div class="bp ${w ? 'w' : ''} ${l ? 'l' : ''}">${p ? `<span class="flagi">${flagImg(p)}</span><span class="ell">${esc(p.nickname)}</span>` : '<span class="dim">—</span>'}<b>${m.played ? sc : ''}</b></div>`;
+}
+const bmatch = (m, next) => m ? `<div class="bm ${m === next ? 'next' : ''}">${bp(m, 't1')}${bp(m, 't2')}</div>` : '<div class="bm ghost"><div class="bp"><span class="dim">—</span></div><div class="bp"><span class="dim">—</span></div></div>';
+function bracket(cols, next) {
+  return `<div class="brk">${cols.map(([title, ms]) => `<div class="bcol"><div class="bh">${esc(title)}</div><div class="bl">${ms.map(m => bmatch(m, next)).join('')}</div></div>`).join('')}</div>`;
+}
+function showCup() {
+  const c = CUP.active; if (!c) { showCupHome(); return; }
+  const next = cupNext();
+  let armed = false;
+  const reset = `<button class="side-btn" ${on((e, el) => { if (!armed && c.champion < 0) { armed = true; el.textContent = 'точно?'; el.style.color = COL.bad; return; } CUP.active = null; saveCup(); showCupHome(); })}>${c.champion >= 0 ? 'новый' : 'сброс'}</button>`;
+  let h = topbar(`Турнир · ${c.size} игроков`, showMenu, reset) + '<div class="scroll">';
+  if (c.champion >= 0) {
+    const p = PL.get(c.champion);
+    h += `<div class="big-champ"><h3>ПОБЕДИТЕЛЬ ТУРНИРА</h3><div class="pair">${portrait(p, null, COL.gold)}</div><div class="nm">${esc(p.nickname)}</div><div class="dim">${esc(REG[p.region])} · ${c.size} игроков</div></div>`;
+  }
+  if (c.size === 8) {
+    const g = k => c.matches.find(m => m.key === k);
+    h += sec('Верхняя сетка') + bracket([['1/4 финала', ['WB1a', 'WB1b', 'WB1c', 'WB1d'].map(g)], ['Полуфинал', ['WB2a', 'WB2b'].map(g)], ['Финал ВС', [g('WBF')]], ['Гранд-финал', [g('GF'), ...(g('GF2') ? [g('GF2')] : [])]]], next);
+    h += sec('Нижняя сетка') + bracket([['Раунд 1', ['LB1a', 'LB1b'].map(g)], ['Раунд 2', ['LB2a', 'LB2b'].map(g)], ['Полуфинал НС', [g('LB3')]], ['Финал НС', [g('LBF')]]], next);
+    h += '<div class="dim" style="font-size:12px">Проигравший в верхней сетке падает в нижнюю, второе поражение — вылет. Если в гранд-финале побеждает игрок из нижней сетки, играется ещё один финал (перезапуск сетки).</div>';
+  } else {
+    const ko = ph => c.matches.filter(m => m.phase === ph);
+    const pad = (arr, n) => arr.concat(Array(Math.max(0, n - arr.length)).fill(null));
+    h += sec('Плей-офф') + bracket([['Четвертьфинал', pad(ko('qf'), 4)], ['Полуфинал', pad(ko('sf'), 2)], ['Финал', pad(ko('f'), 1)]], next);
+    for (let gi = 0; gi < 4; gi++) {
+      h += sec('Группа ' + 'ABCD'[gi]) + '<div class="th"><span></span><span></span><span></span><span>игрок</span><span class="c">В-П</span><span class="c">карты</span></div>';
+      const ms = cupGroupMatches(gi);
+      standingsOf(ms).forEach((row, i) => {
+        const p = PL.get(row.team);
+        h += `<div class="tr2"><span class="mk" style="background:${i < 2 ? COL.good : '#1A2135'}"></span><span class="pl">${i + 1}</span>${portrait(p, null)}
+          <div class="nm"><b class="ell">${esc(p.nickname)}</b><small style="color:${RCOL[p.region]}">${esc(REG[p.region])}</small></div>
+          <span class="c w">${row.wins}-${row.losses}</span><span class="c dim">${row.mw}:${row.ml}</span></div>`;
+      });
+    }
+  }
+  h += cupHistory() + '</div>';
+  if (next) {
+    const a = PL.get(next.t1), b = PL.get(next.t2);
+    h += `<div class="bottom"><div class="np-title">Следующий матч · ${esc(next.label)}</div>
+      <div class="np">${portrait(a, null, COL.p1)}<div class="t"><b class="ell" style="color:${COL.p1}">${esc(a.nickname)}</b><small class="ell" style="display:block">${esc(REG[a.region])}</small></div><span class="v">VS</span>
+      <div class="t r"><b class="ell" style="color:${COL.p2}">${esc(b.nickname)}</b><small class="ell" style="display:block">${esc(REG[b.region])}</small></div>${portrait(b, null, COL.p2)}</div>
+      <button class="btn main" ${on(() => startMatch(a, null, b, null, `Турнир · ${next.label}`, (s1, s2) => { cupReport(next, s1, s2); showCup(); }, showCup))}>СМОТРЕТЬ МАТЧ</button>
+      <div class="row2"><button class="btn" ${on(() => { cupQuick(next); showCup(); })}>Быстрый результат</button><button class="btn" ${on(() => { cupSimStage(); showCup(); })}>Досчитать этап</button></div></div>`;
+  } else if (c.champion >= 0) {
+    h += `<div class="bottom"><button class="btn main" ${on(() => { CUP.active = null; saveCup(); showCupHome(); })}>НОВЫЙ ТУРНИР</button></div>`;
+  }
+  screen(h);
 }
 
 // ================= НАСТРОЙКИ =================
@@ -753,7 +990,7 @@ function syncText() {
   return { local: 'Сохранение: на этом устройстве', loading: 'Сохранение: подключаюсь к облаку…', cloud: 'Сохранение: в облаке claude.ai', error: 'Облако недоступно, сохраняю на устройстве' }[CLOUD.state];
 }
 function paintSync() { const el = document.getElementById('sync'); if (el) { el.textContent = syncText(); el.className = 'sync ' + CLOUD.state; } }
-const cloudBody = k => k === 'season' ? D : OV;
+const cloudBody = k => k === 'season' ? D : k === 'cup' ? CUP : OV;
 async function cloudSave(k) {
   if (!CLOUD.on) return;
   CLOUD.dirty[k] = true;
@@ -775,7 +1012,7 @@ async function cloudInit() {
     const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
     if (!db || !user || !user.isOwner()) { CLOUD.state = 'local'; paintSync(); return; }
     CLOUD.db = db;
-    const [s, o] = await Promise.all([db.doc('save/season').get(), db.doc('save/settings').get()]);
+    const [s, o, cu] = await Promise.all([db.doc('save/season').get(), db.doc('save/settings').get(), db.doc('save/cup').get()]);
     let changed = false;
     if (o.exists) { const v = o.data(); OV = { power: { ...(v.power || {}) }, bonus: { ...(v.bonus || {}) }, skill: { ...(v.skill || {}) } }; store.set(OKEY, OV); applyOV(); changed = true; }
     if (s.exists) {
@@ -785,6 +1022,8 @@ async function cloudInit() {
     CLOUD.on = true; CLOUD.state = 'cloud'; paintSync();
     if (!s.exists) cloudSave('season');      // первый запуск: переносим локальный прогресс в облако
     if (!o.exists) cloudSave('settings');
+    if (cu.exists) { const v = JSON.parse(JSON.stringify(cu.data())); CUP = { active: v.active || null, history: Array.isArray(v.history) ? v.history : [] }; store.set(CKEY, CUP); changed = true; }
+    else cloudSave('cup');
     if (changed && !M) showMenu();
   } catch (e) { CLOUD.state = 'error'; paintSync(); }
 }
