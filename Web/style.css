@@ -326,3 +326,11 @@ textarea:focus { outline: 2px solid var(--accent); }
 .hall > .flagi { align-self: flex-start; }
 .bp .dim { font-size: 11px; }
 .bp .dim { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* вертикальная сетка плей-офф */
+.vbr { display: flex; flex-direction: column; gap: 4px; }
+.vround { display: flex; flex-direction: column; gap: 6px; }
+.vround .bh { margin: 0; text-align: center; }
+.vgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.vgrid.one { grid-template-columns: minmax(0, 1fr); width: min(100%, 260px); margin: 0 auto; }
+.vgrid .bm { min-width: 0; }
+.varr { text-align: center; color: var(--dim); font-size: 11px; line-height: 1; opacity: .6; }

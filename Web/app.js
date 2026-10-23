@@ -813,8 +813,8 @@ function src2txt(s) {
     : /^SF[ab]$/.test(k) ? 'полуфинала №' + n[k[2]]
     : /^PI\d$/.test(k) ? 'плей-ина №' + (+k[2] + 1)
     : /^R\d[a-d]$/.test(k) ? `раунда ${k[1]} №${n[k[2]]}` : k;
-  if (s[0] === 'W') return 'победитель ' + human;
-  if (s[0] === 'L') return 'проигравший ' + human;
+  if (s[0] === 'W') return 'поб. ' + human;
+  if (s[0] === 'L') return 'проигр. ' + human;
   return '';
 }
 
@@ -983,8 +983,9 @@ function bp(t, m, side) {
   return `<div class="bp ${w ? 'w' : ''} ${l ? 'l' : ''}">${who}<b>${m.played ? sc : ''}</b></div>`;
 }
 const bmatch = (t, m, next) => `<div class="bm ${m === next ? 'next' : ''} ${m.t1 < 0 && m.t2 < 0 ? 'ghost' : ''}">${bp(t, m, 't1')}${bp(t, m, 't2')}</div>`;
+// Вертикальная сетка: раунды идут сверху вниз, матчи раунда — по два в ряд, чтобы всё помещалось на экране телефона.
 function bracket(t, cols, next) {
-  return `<div class="brk">${cols.map(([title, keys]) => `<div class="bcol"><div class="bh">${esc(title)}</div><div class="bl">${keys.map(k => bmatch(t, tM(t, k), next)).join('')}</div></div>`).join('')}</div>`;
+  return `<div class="vbr">${cols.map(([title, keys], i) => `${i ? '<div class="varr">▼</div>' : ''}<div class="vround"><div class="bh">${esc(title)}</div><div class="vgrid ${keys.length === 1 ? 'one' : ''}">${keys.map(k => bmatch(t, tM(t, k), next)).join('')}</div></div>`).join('')}</div>`;
 }
 function tourChampion(t) {
   const p = tPlayer(t, t.champion), tm = tTeam(t, t.champion);
