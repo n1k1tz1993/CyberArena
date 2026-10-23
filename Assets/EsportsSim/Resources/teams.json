@@ -265,10 +265,11 @@
   },
   {
    "id": 38,
-   "name": "Taipei Assassins",
+   "name": "AZUBU Taipei Assassins",
    "region": 3,
-   "bonus": 6,
-   "logo": "t408"
+   "bonus": 3,
+   "logo": "t4ta",
+   "fullLogo": true
   },
   {
    "id": 39,
@@ -413,6 +414,21 @@
    "bonus": 4,
    "logo": "t311",
    "fullLogo": true
+  },
+  {
+   "id": 58,
+   "name": "AZUBU Taipei Snipers",
+   "region": 3,
+   "bonus": 2,
+   "logo": "t411",
+   "fullLogo": true
+  },
+  {
+   "id": 59,
+   "name": "PENTAGRAM",
+   "region": 3,
+   "bonus": 2,
+   "logo": "t412"
   }
  ]
 }
