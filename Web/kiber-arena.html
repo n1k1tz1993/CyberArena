@@ -453,12 +453,13 @@ const S = {
   startRegion(r) { if (D.phase !== PH.Regions || D.regionState[r] !== RS.NotStarted) return; D.regionState[r] = RS.Draft; saveSeason(); },
   draftOrder: r => teamsIn(r),
   currentPicker(r) { return teamsIn(r).find(t => !S.playerOf(t.id)) || null; },
-  available(r) { return inRegion(r).filter(p => S.teamIdOf(p.id) < 0).sort((a, b) => b.power - a.power); },
+  // свободные игроки любого региона (подписанный игрок уже не может уйти в другую команду этого сезона)
+  available(r) { return DATA.players.filter(p => S.teamIdOf(p.id) < 0).sort((a, b) => b.power - a.power); },
   pickNumber(r) { return teamsIn(r).filter(t => S.playerOf(t.id)).length + 1; },
   pick(r, pid) {
     if (D.regionState[r] !== RS.Draft) return false;
     const team = S.currentPicker(r), p = PL.get(pid);
-    if (!team || !p || p.region !== r || S.teamIdOf(pid) >= 0) return false;
+    if (!team || !p || S.teamIdOf(pid) >= 0) return false;
     D.draftPlayers.push(pid); D.draftTeams.push(team.id);
     if (!S.currentPicker(r)) { D.regionState[r] = RS.League; D.matches.push(...roundRobin(teamsIn(r).map(t => t.id), ST.League, r, false)); }
     saveSeason(); return true;
@@ -1036,10 +1037,17 @@ function showRegion(r) {
 function showDraft(r) {
   if (D.regionState[r] !== RS.Draft) { showRegion(r); return; }
   const picker = S.currentPicker(r), order = teamsIn(r), av = S.available(r);
-  let h = topbar('Драфт · ' + REG[r], showSeason) + `<div class="picker">${logo(picker)}<div style="min-width:0"><small>ПИК ${S.pickNumber(r)} ИЗ ${order.length} · ВЫБИРАЕТ</small><b class="ell">${esc(picker.name)}</b><span class="dim" style="font-size:12px">нажми на игрока, чтобы выбрать его в эту команду</span></div></div>
-    <div class="scroll">${sec('Свободные игроки · ' + av.length)}<div class="dgrid">`;
-  for (const p of av) h += `<div class="dc" ${on(() => { S.pick(r, p.id); showDraft(r); })}>${portrait(p, null)}<div class="nick ell">${esc(p.nickname)}</div><div class="sk">${esc(p.skill)}</div></div>`;
-  h += '</div>' + sec('Порядок выбора');
+  const prev = app.querySelector('.scroll.sdraft'); const keep = prev ? prev.scrollTop : 0;
+  let h = topbar('Драфт · ' + REG[r], showSeason) + `<div class="picker">${logo(picker)}<div style="min-width:0"><small>ПИК ${S.pickNumber(r)} ИЗ ${order.length} · ВЫБИРАЕТ</small><b class="ell">${esc(picker.name)}</b><span class="dim" style="font-size:12px">можно подписать свободного игрока из любого региона</span></div></div>
+    <div class="scroll sdraft">${sec('Свободные игроки · ' + av.length)}`;
+  for (const rr of [r, ...[0, 1, 2, 3, 4].filter(x => x !== r)]) {
+    const list = av.filter(p => p.region === rr);
+    if (!list.length) continue;
+    h += `<div class="reg-h"><span class="bar" style="background:${RCOL[rr]}"></span>${regionLogo(rr)}<b style="color:${RCOL[rr]}">${esc(REG[rr].toUpperCase())}</b><span class="dim" style="font-size:12px">${rr === r ? 'свой регион · ' : ''}свободно ${list.length}</span></div><div class="dgrid">`;
+    for (const p of list) h += `<div class="dc" ${on(() => { S.pick(r, p.id); showDraft(r); })}>${portrait(p, null)}<div class="nick ell">${esc(p.nickname)}</div><div class="sk">${esc(p.skill)}</div></div>`;
+    h += '</div>';
+  }
+  h += sec('Порядок выбора');
   order.forEach((t, k) => {
     const p = S.playerOf(t.id), now = picker && t.id === picker.id;
     h += `<div class="or ${now ? 'now' : ''}"><span class="n">${k + 1}</span>${logo(t)}<span class="nm ell">${esc(t.name)}</span>${p ? `<span class="pk">${esc(p.nickname)}${portrait(p, null)}</span>` : now ? '<span class="pk">выбирает…</span>' : ''}</div>`;
@@ -1047,6 +1055,7 @@ function showDraft(r) {
   h += `</div><div class="bottom"><div class="row2" style="grid-template-columns:2fr 3fr"><button class="btn" ${on(() => { S.autoPick(r); showDraft(r); })}>Автовыбор за команду</button>
     <button class="btn main" ${on(() => { S.autoDraft(r); showRegion(r); })}>АВТОДРАФТ ДО КОНЦА</button></div></div>`;
   screen(h);
+  const sc = app.querySelector('.scroll.sdraft'); if (sc) sc.scrollTop = keep;
 }
 
 function showWildCard() {
