@@ -396,6 +396,22 @@
    "region": 1,
    "bonus": 5,
    "logo": "t212"
+  },
+  {
+   "id": 56,
+   "name": "Спартак",
+   "region": 2,
+   "bonus": 3,
+   "logo": "t312",
+   "fullLogo": true
+  },
+  {
+   "id": 57,
+   "name": "Локомотив",
+   "region": 2,
+   "bonus": 4,
+   "logo": "t311",
+   "fullLogo": true
   }
  ]
 }
