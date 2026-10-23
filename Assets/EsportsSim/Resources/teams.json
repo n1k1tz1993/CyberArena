@@ -366,6 +366,14 @@
    "region": 4,
    "bonus": 3,
    "logo": "t511"
+  },
+  {
+   "id": 52,
+   "name": "SUPERMASSIVE",
+   "region": 1,
+   "bonus": 4,
+   "logo": "t211",
+   "fullLogo": true
   }
  ]
 }
