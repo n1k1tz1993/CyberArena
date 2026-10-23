@@ -618,7 +618,10 @@ function advanceRegion(r) {
 // (36 → 18; при нечётном числе одна команда проходит без игры). Затем «царь горы» среди оставшихся.
 function startWC() {
   D.phase = PH.WC;
-  const all = shuffle(DATA.teams.map(t => t.id).filter(id => !D.qualified.includes(id)));
+  // последние 2 места каждой лиги покидают сезон и в Wild Card не играют
+  D.relegated = [];
+  for (let r = 0; r < 5; r++) D.relegated.push(...S.standings(ST.League, r).slice(-2).map(s => s.team));
+  const all = shuffle(DATA.teams.map(t => t.id).filter(id => !D.qualified.includes(id) && !D.relegated.includes(id)));
   D.wcBye = all.length % 2 ? all.pop() : -1;
   D.wcQueue = []; D.wcNext = 0;
   for (let i = 0; i < all.length; i += 2) addM(ST.WC1, 0, all[i], all[i + 1]);
@@ -1027,7 +1030,8 @@ function showRegion(r) {
     });
   }
   h += sec('Таблица лиги') + tableHead();
-  S.standings(ST.League, r).forEach((row, i) => h += tableRow(i + 1, row, i < 2 ? COL.gold : i < 6 ? COL.good : '#1A2135', i < 2 ? 'в полуфинал' : i < 6 ? 'плей-ин' : ''));
+  const tbl = S.standings(ST.League, r), out = tbl.length - 2;
+  tbl.forEach((row, i) => h += tableRow(i + 1, row, i < 2 ? COL.gold : i < 6 ? COL.good : i >= out ? COL.bad : '#1A2135', i < 2 ? 'в полуфинал' : i < 6 ? 'плей-ин' : i >= out ? 'выбывает из сезона' : 'Wild Card'));
   if (st >= RS.PlayIn) {
     h += sec('Плей-офф');
     S.matches(ST.PlayIn, r).forEach(m => h += matchRow(m, 'Плей-ин', m === next));
@@ -1069,7 +1073,7 @@ function showDraft(r) {
 function showWildCard() {
   const next = D.phase === PH.WC ? S.nextWC() : null;
   const ms = S.matches(ST.WC), st1 = S.matches(ST.WC1), left1 = S.wcStage1Left();
-  let h = topbar('Wild Card', showSeason) + `<div class="scroll"><div class="card alt dim" style="font-size:13px"><b class="gold">Первый этап.</b> Все команды без путёвки разбиты на случайные пары, проигравшие вылетают — остаётся половина.<br><b class="gold">Царь горы.</b> Победитель матча остаётся, проигравший вылетает, его место занимает следующая команда. Последний матч — финал. Победитель едет на чемпионат мира 16-й командой.</div>`;
+  let h = topbar('Wild Card', showSeason) + `<div class="scroll"><div class="card alt dim" style="font-size:13px"><b class="gold">Первый этап.</b> Все команды без путёвки (кроме двух последних команд каждой лиги — они выбыли) разбиты на случайные пары, проигравшие вылетают — остаётся половина.<br><b class="gold">Царь горы.</b> Победитель матча остаётся, проигравший вылетает, его место занимает следующая команда. Последний матч — финал. Победитель едет на чемпионат мира 16-й командой.</div>`;
   const holderBox = (label, tid, extra) => { const t = TM.get(tid), p = S.playerOf(tid); return `<div class="card"><div class="gold" style="font:14px var(--display);margin-bottom:8px">${label}</div><div class="champ-line" style="margin:0">${logo(t, '')}${portrait(p, t, COL.gold)}<div class="who"><b class="ell">${esc(t.name)}</b><span>${esc(p ? p.nickname : '')}${extra}</span></div></div></div>`; };
   if (D.wcWinner >= 0) h += holderBox('ПОБЕДИТЕЛЬ WILD CARD', D.wcWinner, '');
   else if (next && next.stage === ST.WC1) {
