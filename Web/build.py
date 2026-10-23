@@ -33,4 +33,7 @@ const IMG = '''+json.dumps(img)+''';
 '''+open(W+'app.js',encoding='utf-8').read()+'''</script>
 '''
 open(W+'kiber-arena.html','w',encoding='utf-8').write(html)
+# Для GitHub Pages: полноценная страница index.html в корне репозитория
+page='<!doctype html>\n<html lang="ru"><head><meta charset="utf-8">\n<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n'+html.replace('<div id="app"></div>','</head><body>\n<div id="app"></div>',1)+'</body></html>\n'
+open(HERE+'../index.html','w',encoding='utf-8').write(page)
 print(len(html)/1e6,'MB', len(img),'images')
