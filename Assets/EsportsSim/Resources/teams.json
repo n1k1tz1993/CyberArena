@@ -374,6 +374,20 @@
    "bonus": 4,
    "logo": "t211",
    "fullLogo": true
+  },
+  {
+   "id": 53,
+   "name": "INTZ",
+   "region": 0,
+   "bonus": 2,
+   "logo": "t111"
+  },
+  {
+   "id": 54,
+   "name": "CNB eSports Club",
+   "region": 0,
+   "bonus": 1,
+   "logo": "t112"
   }
  ]
 }
