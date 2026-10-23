@@ -17,6 +17,8 @@ for f in each('Portraits'): img[f[:-4]]=uri(Image.open(R+'Portraits/'+f).convert
 for f in each('Logos'): img[f[:-4]]=uri(Image.open(R+'Logos/'+f).convert('RGBA').resize((160,160),Image.LANCZOS),'WEBP',quality=90)
 for f in each('Flags'): img['f_'+f[:-4]]=uri(Image.open(R+'Flags/'+f).convert('RGB'),'PNG',optimize=True)
 for f in each('Regions'): img[f[:-4]]=uri(Image.open(R+'Regions/'+f).convert('RGBA').resize((200,200),Image.LANCZOS),'WEBP',quality=90)
+img['epl']=uri(Image.open(R+'ESL/epl.png').convert('RGB'),'WEBP',quality=84)
+img['esl']=uri(Image.open(R+'ESL/esl.png').convert('RGBA'),'WEBP',quality=90)
 img['arena']=uri(Image.open(R+'Arena/arena_bg.png').convert('RGB'),'WEBP',quality=80)
 html='''<title>Кибер Арена</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

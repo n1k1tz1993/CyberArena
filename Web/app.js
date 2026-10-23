@@ -73,13 +73,20 @@ const RS = { NotStarted: 0, Draft: 1, League: 2, PlayIn: 3, Semi: 4, Final: 5, D
 const PH = { Regions: 0, WC: 1, WG: 2, WQ: 3, WS: 4, WF: 5, Finished: 6 };
 const SKEY = 'ca_season_v1';
 let D;
-const fresh = (n, ht, hp) => ({ number: n, phase: 0, regionState: [0, 0, 0, 0, 0], matches: [], draftPlayers: [], draftTeams: [], qualified: Array(15).fill(-1), wcQueue: [], wcNext: 0, wcWinner: -1, wcBye: -1, groups: [], champion: -1, championPlayer: '', historyTeams: ht || [], historyPlayers: hp || [] });
+const fresh = (n, ht, hp, pids) => ({ number: n, phase: 0, regionState: [0, 0, 0, 0, 0], matches: [], draftPlayers: [], draftTeams: [], qualified: Array(15).fill(-1), wcQueue: [], wcNext: 0, wcWinner: -1, wcBye: -1, groups: [], champion: -1, championPlayer: '', historyTeams: ht || [], historyPlayers: hp || [], historyPids: pids || [] });
 function loadSeason() {
   D = store.get(SKEY, null);
   const ok = D && Array.isArray(D.matches) && Array.isArray(D.regionState) && D.regionState.length === 5 && Array.isArray(D.draftPlayers)
     && Array.isArray(D.draftTeams) && D.draftPlayers.length === D.draftTeams.length && Array.isArray(D.qualified) && D.qualified.length === 15
     && D.matches.every(m => TM.has(m.t1) && TM.has(m.t2)) && D.draftPlayers.every(id => PL.has(id)) && D.draftTeams.every(id => TM.has(id));
   if (!ok) { D = fresh(1); saveSeason(); }
+  if (!Array.isArray(D.historyTeams)) D.historyTeams = [];
+  if (!Array.isArray(D.historyPlayers)) D.historyPlayers = [];
+  if (!Array.isArray(D.historyPids)) D.historyPids = [];
+  while (D.historyPids.length < D.historyTeams.length) { // старые сохранения: ищем игрока по нику
+    const nick = D.historyPlayers[D.historyPids.length], p = DATA.players.find(x => x.nickname === nick);
+    D.historyPids.push(p ? p.id : -1);
+  }
 }
 const saveSeason = () => { store.set(SKEY, D); cloudSave('season'); };
 const S = {
@@ -87,7 +94,8 @@ const S = {
   stateOf: r => D.regionState[r],
   allDone: () => D.regionState.every(s => s === RS.Done),
   letter: g => 'ABCD'[clamp(g, 0, 3)],
-  newSeason() { D = fresh(D.number + 1, D.historyTeams, D.historyPlayers); saveSeason(); },
+  // цикл из 10 сезонов: после 10-го снова «Сезон 1», зал чемпионов мира начинается заново
+  newSeason() { D = D.number >= 10 ? fresh(1) : fresh(D.number + 1, D.historyTeams, D.historyPlayers, D.historyPids); saveSeason(); },
   resetAll() { D = fresh(1); saveSeason(); },
   playerOf(tid) { const i = D.draftTeams.indexOf(tid); return i >= 0 ? PL.get(D.draftPlayers[i]) : null; },
   teamIdOf(pid) { const i = D.draftPlayers.indexOf(pid); return i >= 0 ? D.draftTeams[i] : -1; },
@@ -334,7 +342,7 @@ function advanceWorlds() {
       const p = S.playerOf(D.champion);
       D.championPlayer = p ? p.nickname : '';
       D.phase = PH.Finished;
-      D.historyTeams.push(D.champion); D.historyPlayers.push(D.championPlayer);
+      D.historyTeams.push(D.champion); D.historyPlayers.push(D.championPlayer); D.historyPids.push(p ? p.id : -1);
       break;
     }
   }
@@ -390,9 +398,10 @@ function showMenu() {
   screen(`<div class="menu">
     <div class="brand"><h2>КИБЕР<br>АРЕНА</h2><p>симулятор киберспортивных турниров</p></div>
     <button class="btn b1" ${on(showSelect)}>СВОБОДНЫЙ БОЙ</button>
-    <button class="btn b2" ${on(showSeason)}>СЕЗОН ${D.number}<small>${esc(S.phaseName())}</small></button>
-    <button class="btn b3" ${on(showCupHome)}>ТУРНИР ВНЕ СЕЗОНА<small>${esc(cupStatus())}</small></button>
-    <button class="btn" ${on(() => showSettings(0))}>НАСТРОЙКИ</button>
+    <button class="btn b2" ${on(showSeason)}>СЕЗОН ЛИГИ<small>Сезон ${D.number} · ${esc(S.phaseName())}</small></button>
+    <button class="btn bpro" ${on(showProHome)}><span class="mi"><img src="${img('esl')}" alt="">ESL PRO LEAGUE</span><small>${esc(tStatus('pro'))}</small></button>
+    <button class="btn bone" ${on(showOneHome)}><span class="mi"><img src="${img('esl')}" alt="">ESL ONE</span><small>${esc(tStatus('one'))}</small></button>
+    <div class="row2"><button class="btn bhall" ${on(() => showHall(0))}>ЗАЛ СЛАВЫ</button><button class="btn" ${on(() => showSettings(0))}>НАСТРОЙКИ</button></div>
     ${last}
     <div class="sync" id="sync">${syncText()}</div>
   </div>`);
@@ -577,12 +586,12 @@ function showSeason() {
   seasonResetArmed = false;
   const fin = D.phase === PH.Finished;
   const reset = `<button class="side-btn" ${on((e, el) => { if (!seasonResetArmed) { seasonResetArmed = true; el.textContent = 'точно?'; el.style.color = COL.bad; return; } S.resetAll(); showSeason(); })}>сброс</button>`;
-  let h = topbar(`Сезон ${D.number}`, showMenu, reset) + `<div class="scroll"><div class="phase">${esc(S.phaseName())}</div>`;
+  let h = topbar(`Сезон лиги · ${D.number}`, showMenu, reset) + `<div class="scroll"><div class="phase">${esc(S.phaseName())}</div>`;
   if (fin) h += championBlock();
   h += '<div class="sec">Регионы</div>';
   for (let r = 0; r < 5; r++) h += regionCard(r);
   h += '<div class="sec">Турниры</div>' + wcCard() + worldsCard() + historyBlock() + '</div>';
-  if (fin) h += `<div class="bottom"><button class="btn main" ${on(() => { S.newSeason(); showSeason(); })}>НОВЫЙ СЕЗОН</button></div>`;
+  if (fin) h += `<div class="bottom">${D.number >= 10 ? '<div class="dim" style="text-align:center;font-size:12px">Это был 10-й сезон. Дальше — новый цикл с 1-го сезона, зал чемпионов мира начнётся заново.</div>' : ''}<button class="btn main" ${on(() => { S.newSeason(); showSeason(); })}>${D.number >= 10 ? 'НОВЫЙ ЦИКЛ · СЕЗОН 1' : 'НОВЫЙ СЕЗОН'}</button></div>`;
   screen(h);
 }
 function regionCard(r) {
@@ -755,186 +764,299 @@ function historyBlock() {
   return out;
 }
 
-// ================= ТУРНИР ВНЕ СЕЗОНА =================
-// Игроки без команд (сила = только сила игрока). 8 игроков — double elimination, 16 — 4 группы по 4 (два круга) + плей-офф.
-const CKEY = 'ca_cup_v1';
-let CUP = store.get(CKEY, null) || { active: null, history: [] };
-if (!Array.isArray(CUP.history)) CUP.history = [];
-if (CUP.active && !(CUP.active.players || []).every(id => PL.has(id))) CUP.active = null;
-const saveCup = () => { store.set(CKEY, CUP); cloudSave('cup'); };
-
-// Сетка double elimination на 8: откуда берутся участники каждого матча (W — победитель, L — проигравший).
-const DE8 = [
-  ['WB1a', 'wb1', 'Верхняя сетка · 1/4', 0, 1], ['WB1b', 'wb1', 'Верхняя сетка · 1/4', 2, 3],
-  ['WB1c', 'wb1', 'Верхняя сетка · 1/4', 4, 5], ['WB1d', 'wb1', 'Верхняя сетка · 1/4', 6, 7],
-  ['WB2a', 'wb2', 'Полуфинал верхней сетки', 'W:WB1a', 'W:WB1b'], ['WB2b', 'wb2', 'Полуфинал верхней сетки', 'W:WB1c', 'W:WB1d'],
-  ['LB1a', 'lb1', 'Нижняя сетка · раунд 1', 'L:WB1a', 'L:WB1b'], ['LB1b', 'lb1', 'Нижняя сетка · раунд 1', 'L:WB1c', 'L:WB1d'],
-  ['LB2a', 'lb2', 'Нижняя сетка · раунд 2', 'W:LB1a', 'L:WB2b'], ['LB2b', 'lb2', 'Нижняя сетка · раунд 2', 'W:LB1b', 'L:WB2a'],
-  ['WBF', 'wbf', 'Финал верхней сетки', 'W:WB2a', 'W:WB2b'],
-  ['LB3', 'lb3', 'Полуфинал нижней сетки', 'W:LB2a', 'W:LB2b'],
-  ['LBF', 'lbf', 'Финал нижней сетки', 'W:LB3', 'L:WBF'],
-  ['GF', 'gf', 'Гранд-финал', 'W:WBF', 'W:LBF'],
-];
-const QF16 = [[0, 0, 1, 1], [1, 0, 0, 1], [2, 0, 3, 1], [3, 0, 2, 1]]; // A1–B2, B1–A2, C1–D2, D1–C2
-
-function cupNew(size, ids) {
-  const pl = shuffle(ids);
-  const c = { size, players: pl, matches: [], champion: -1, groups: [] };
-  if (size === 8) {
-    for (const [key, phase, label, a, b] of DE8)
-      c.matches.push({ key, phase, label, src: [a, b], t1: typeof a === 'number' ? pl[a] : -1, t2: typeof b === 'number' ? pl[b] : -1, s1: 0, s2: 0, played: false });
-  } else {
-    c.groups = pl.slice();
-    const per = [];
-    for (let g = 0; g < 4; g++) {
-      const ids4 = pl.slice(g * 4, g * 4 + 4);
-      per.push([...roundRobin(ids4, 0, g, false), ...roundRobin(ids4, 0, g, true)]);
-    }
-    for (let k = 0; k < per[0].length; k += 2) for (let g = 0; g < 4; g++)
-      per[g].slice(k, k + 2).forEach(m => c.matches.push({ key: 'G' + g + '_' + c.matches.length, phase: 'grp', group: g, label: 'Группа ' + 'ABCD'[g], t1: m.t1, t2: m.t2, s1: 0, s2: 0, played: false }));
-  }
-  CUP.active = c; saveCup();
+// ================= ESL ONE И ESL PRO LEAGUE =================
+// Общий движок турнирных сеток. Участники — игроки (ESL One, без команд) или команды (Pro League, с игроками).
+// Матч плей-офф берёт участников из источников: 'P3' — участник №3 после жеребьёвки, 'W:key'/'L:key' — победитель/проигравший
+// матча, 'G:g:n' — n-е место группы g (известно, когда группа доиграна).
+const KO = (key, phase, label, a, b) => ({ key, phase, label, a, b });
+const QF_FROM_GROUPS = [['G:0:0', 'G:1:1'], ['G:1:0', 'G:0:1'], ['G:2:0', 'G:3:1'], ['G:3:0', 'G:2:1']];
+const FORMATS = {
+  4: {
+    title: 'Double Elimination', desc: 'Верхняя и нижняя сетка, гранд-финал. Два поражения — вылет.', groups: 0,
+    ko: [KO('M1', 'ub1', 'Верхняя сетка · раунд 1', 'P0', 'P1'), KO('M2', 'ub1', 'Верхняя сетка · раунд 1', 'P2', 'P3'),
+      KO('M3', 'lb1', 'Нижняя сетка · раунд 1', 'L:M1', 'L:M2'), KO('M5', 'ubf', 'Финал верхней сетки', 'W:M1', 'W:M2'),
+      KO('M7', 'lbf', 'Финал нижней сетки', 'L:M5', 'W:M3'), KO('F', 'gf', 'Гранд-финал', 'W:M5', 'W:M7')],
+    layout: [['Верхняя сетка', [['Раунд 1', ['M1', 'M2']], ['Финал ВС', ['M5']], ['Гранд-финал', ['F']]]],
+      ['Нижняя сетка', [['Раунд 1', ['M3']], ['Финал НС', ['M7']]]]],
+  },
+  8: {
+    title: 'Single Elimination', desc: '1/4 финала, полуфиналы, финал. Поражение — вылет.', groups: 0,
+    ko: [KO('QF0', 'qf', '1/4 финала', 'P0', 'P1'), KO('QF1', 'qf', '1/4 финала', 'P2', 'P3'), KO('QF2', 'qf', '1/4 финала', 'P4', 'P5'), KO('QF3', 'qf', '1/4 финала', 'P6', 'P7'),
+      KO('SF0', 'sf', 'Полуфинал', 'W:QF0', 'W:QF1'), KO('SF1', 'sf', 'Полуфинал', 'W:QF2', 'W:QF3'), KO('F', 'f', 'Финал', 'W:SF0', 'W:SF1')],
+    layout: [['Сетка', [['1/4 финала', ['QF0', 'QF1', 'QF2', 'QF3']], ['Полуфинал', ['SF0', 'SF1']], ['Финал', ['F']]]]],
+  },
+  16: {
+    title: 'Группы + плей-офф', desc: '4 группы по 4, каждый с каждым дважды, выходят двое. Четвертьфиналы A1–B2, B1–A2, C1–D2, D1–C2.', groups: 4, gsize: 4, rr: 2, adv: 2,
+    ko: [...QF_FROM_GROUPS.map(([a, b], i) => KO('QF' + i, 'qf', `Четвертьфинал · ${src2txt(a)} – ${src2txt(b)}`, a, b)),
+      KO('SF0', 'sf', 'Полуфинал', 'W:QF0', 'W:QF2'), KO('SF1', 'sf', 'Полуфинал', 'W:QF1', 'W:QF3'), KO('F', 'f', 'Финал', 'W:SF0', 'W:SF1')],
+    layout: [['Плей-офф', [['Четвертьфинал', ['QF0', 'QF1', 'QF2', 'QF3']], ['Полуфинал', ['SF0', 'SF1']], ['Финал', ['F']]]]],
+  },
+  24: {
+    title: 'Формат Pro League', desc: '4 группы по 6, каждый с каждым. Первые места — в плей-ин, 2-е и 3-и — в сетку, 4–6 места вылетают. Победители плей-ина ждут в полуфинале, проигравшие — в 3-м раунде.', groups: 4, gsize: 6, rr: 1, adv: 3,
+    ko: [KO('PI0', 'pi', 'Плей-ин · A1 – C1', 'G:0:0', 'G:2:0'), KO('PI1', 'pi', 'Плей-ин · B1 – D1', 'G:1:0', 'G:3:0'),
+      KO('R1a', 'r1', 'Раунд 1 · A2 – B3', 'G:0:1', 'G:1:2'), KO('R1b', 'r1', 'Раунд 1 · B2 – A3', 'G:1:1', 'G:0:2'),
+      KO('R1c', 'r1', 'Раунд 1 · C2 – D3', 'G:2:1', 'G:3:2'), KO('R1d', 'r1', 'Раунд 1 · D2 – C3', 'G:3:1', 'G:2:2'),
+      KO('R2a', 'r2', 'Раунд 2', 'W:R1a', 'W:R1b'), KO('R2b', 'r2', 'Раунд 2', 'W:R1c', 'W:R1d'),
+      KO('R3a', 'r3', 'Раунд 3', 'W:R2a', 'L:PI0'), KO('R3b', 'r3', 'Раунд 3', 'W:R2b', 'L:PI1'),
+      KO('SFa', 'sf', 'Полуфинал', 'W:R3a', 'W:PI1'), KO('SFb', 'sf', 'Полуфинал', 'W:R3b', 'W:PI0'), KO('F', 'f', 'Финал', 'W:SFa', 'W:SFb')],
+    layout: [['Плей-ин (первые места групп)', [['Плей-ин', ['PI0', 'PI1']]]],
+      ['Плей-офф', [['Раунд 1', ['R1a', 'R1b', 'R1c', 'R1d']], ['Раунд 2', ['R2a', 'R2b']], ['Раунд 3', ['R3a', 'R3b']], ['Полуфинал', ['SFa', 'SFb']], ['Финал', ['F']]]]],
+  },
+};
+function src2txt(s) {
+  if (!s) return '';
+  if (s[0] === 'G') { const [, g, n] = s.split(':'); return 'ABCD'[+g] + (+n + 1); }
+  const k = s.slice(2), n = { a: 1, b: 2, c: 3, d: 4 };
+  const human = /^M\d$/.test(k) ? 'матча ' + k.slice(1)
+    : /^QF\d$/.test(k) ? '1/4 №' + (+k[2] + 1)
+    : /^SF\d$/.test(k) ? 'полуфинала №' + (+k[2] + 1)
+    : /^SF[ab]$/.test(k) ? 'полуфинала №' + n[k[2]]
+    : /^PI\d$/.test(k) ? 'плей-ина №' + (+k[2] + 1)
+    : /^R\d[a-d]$/.test(k) ? `раунда ${k[1]} №${n[k[2]]}` : k;
+  if (s[0] === 'W') return 'победитель ' + human;
+  if (s[0] === 'L') return 'проигравший ' + human;
+  return '';
 }
-const cupM = key => CUP.active.matches.find(m => m.key === key);
-function cupResolve() {
-  for (const m of CUP.active.matches) if (!m.played && m.src) {
+
+// Хранилища: ONE — ESL One (игроки), PRO — ESL Pro League (команды). В history — победители.
+const OKEY1 = 'ca_cup_v1', PKEY = 'ca_pro_v1';
+let ONE = store.get(OKEY1, null) || { active: null, history: [] };
+let PRO = store.get(PKEY, null) || { active: null, history: [], edition: 0 };
+function sanitizeTours() {
+  for (const T of [ONE, PRO]) {
+    if (!Array.isArray(T.history)) T.history = [];
+    const a = T.active;
+    if (a && (!a.v2 || !FORMATS[a.size] || !(a.ids || []).every(id => a.kind === 'pro' ? TM.has(id) : PL.has(id)))) T.active = null;
+  }
+  if (typeof PRO.edition !== 'number') PRO.edition = PRO.history.length;
+}
+sanitizeTours();
+const tourStore = kind => kind === 'pro' ? PRO : ONE;
+function saveTour(kind) { if (kind === 'pro') { store.set(PKEY, PRO); cloudSave('pro'); } else { store.set(OKEY1, ONE); cloudSave('cup'); } }
+
+// участник → игрок / команда / подпись
+const tPlayer = (t, id) => t.kind === 'pro' ? PL.get(t.roster[id]) : PL.get(id);
+const tTeam = (t, id) => t.kind === 'pro' ? TM.get(id) : null;
+const tName = (t, id) => t.kind === 'pro' ? TM.get(id).name : PL.get(id).nickname;
+
+function tourNew(kind, size, ids) {
+  const F = FORMATS[size], order = shuffle(ids);
+  const t = { v2: true, kind, size, ids: order, matches: [], champion: -1, groups: [], roster: {} };
+  if (kind === 'pro') { // автодрафт: команды в случайном порядке берут сильнейшего свободного игрока своего региона
+    const taken = new Set();
+    for (const tid of shuffle(ids)) {
+      const reg = TM.get(tid).region;
+      const pool = inRegion(reg).filter(p => !taken.has(p.id));
+      const best = pool.map(p => [p, p.power + Math.random() * 8]).sort((x, y) => y[1] - x[1])[0][0];
+      t.roster[tid] = best.id; taken.add(best.id);
+    }
+    PRO.edition++; t.edition = PRO.edition;
+  }
+  if (F.groups) {
+    t.groups = order.slice();
+    const per = [];
+    for (let g = 0; g < F.groups; g++) {
+      const ids_g = order.slice(g * F.gsize, (g + 1) * F.gsize);
+      per.push(F.rr === 2 ? [...roundRobin(ids_g, 0, g, false), ...roundRobin(ids_g, 0, g, true)] : roundRobin(ids_g, 0, g, false));
+    }
+    const step = F.gsize / 2; // туры групп идут вперемешку
+    for (let k = 0; k < per[0].length; k += step) for (let g = 0; g < F.groups; g++)
+      per[g].slice(k, k + step).forEach(m => t.matches.push({ key: 'G' + t.matches.length, phase: 'grp', group: g, label: 'Группа ' + 'ABCD'[g], t1: m.t1, t2: m.t2, s1: 0, s2: 0, played: false }));
+  }
+  for (const k of F.ko) t.matches.push({ key: k.key, phase: k.phase, label: k.label, src: [k.a, k.b], t1: -1, t2: -1, s1: 0, s2: 0, played: false });
+  tourStore(kind).active = t;
+  saveTour(kind);
+  return t;
+}
+const tM = (t, key) => t.matches.find(m => m.key === key);
+const tGroupMatches = (t, g) => t.matches.filter(m => m.phase === 'grp' && m.group === g);
+function tResolve(t) {
+  const groupDone = g => tGroupMatches(t, g).every(m => m.played);
+  const table = {};
+  for (const m of t.matches) if (!m.played && m.src) {
     ['t1', 't2'].forEach((side, i) => {
-      const s = m.src[i]; if (typeof s !== 'string') return;
-      const [wl, key] = s.split(':'); const src = cupM(key);
-      m[side] = src && src.played ? (wl === 'W' ? win(src) : lose(src)) : -1;
+      const s = m.src[i];
+      if (s[0] === 'P') m[side] = t.ids[+s.slice(1)];
+      else if (s[0] === 'G') {
+        const [, g, n] = s.split(':').map(Number);
+        if (!groupDone(g)) { m[side] = -1; return; }
+        table[g] = table[g] || standingsOf(tGroupMatches(t, g));
+        m[side] = table[g][n].team;
+      } else {
+        const src = tM(t, s.slice(2));
+        m[side] = src && src.played ? (s[0] === 'W' ? win(src) : lose(src)) : -1;
+      }
     });
   }
 }
-function cupNext() {
-  const c = CUP.active; if (!c || c.champion >= 0) return null;
-  cupResolve();
-  return c.matches.find(m => !m.played && m.t1 >= 0 && m.t2 >= 0) || null;
+function tNext(t) {
+  if (!t || t.champion >= 0) return null;
+  tResolve(t);
+  return t.matches.find(m => !m.played && m.t1 >= 0 && m.t2 >= 0) || null;
 }
-const cupGroupMatches = g => CUP.active.matches.filter(m => m.phase === 'grp' && m.group === g);
-function cupAdvance(m) {
-  const c = CUP.active;
-  const add = (key, phase, label, t1, t2) => c.matches.push({ key, phase, label, t1, t2, s1: 0, s2: 0, played: false });
-  if (c.size === 8) {
-    if (m.key === 'GF') { if (win(m) === m.t2) add('GF2', 'gf2', 'Гранд-финал · перезапуск сетки', m.t1, m.t2); else c.champion = win(m); }
-    if (m.key === 'GF2') c.champion = win(m);
-    return;
-  }
-  const left = ph => c.matches.some(x => x.phase === ph && !x.played);
-  if (m.phase === 'grp' && !left('grp')) {
-    const top = [0, 1, 2, 3].map(g => standingsOf(cupGroupMatches(g)).map(s => s.team));
-    QF16.forEach(([ga, pa, gb, pb], i) => add('QF' + i, 'qf', `Четвертьфинал · ${'ABCD'[ga]}${pa + 1} – ${'ABCD'[gb]}${pb + 1}`, top[ga][pa], top[gb][pb]));
-  } else if (m.phase === 'qf' && !left('qf')) {
-    const q = i => win(cupM('QF' + i));
-    add('SF0', 'sf', 'Полуфинал', q(0), q(2)); add('SF1', 'sf', 'Полуфинал', q(1), q(3));
-  } else if (m.phase === 'sf' && !left('sf')) add('F', 'f', 'Финал', win(cupM('SF0')), win(cupM('SF1')));
-  else if (m.phase === 'f') c.champion = win(m);
-}
-function cupReport(m, s1, s2) {
+function tReport(t, m, s1, s2) {
   if (m.played) return;
   m.s1 = s1; m.s2 = s2; m.played = true;
-  cupAdvance(m);
-  const c = CUP.active;
-  if (c.champion >= 0) { CUP.history.push({ size: c.size, player: c.champion }); if (CUP.history.length > 30) CUP.history.shift(); }
-  saveCup();
+  if (m.key === 'F') {
+    t.champion = win(m);
+    const T = tourStore(t.kind);
+    if (t.kind === 'pro') T.history.push({ edition: t.edition, team: t.champion, player: t.roster[t.champion] });
+    else T.history.push({ size: t.size, player: t.champion });
+    if (T.history.length > 50) T.history.shift();
+  }
+  saveTour(t.kind);
 }
-function cupQuick(m) { const [x, y] = simMatch(PL.get(m.t1), null, PL.get(m.t2), null); cupReport(m, x, y); }
-function cupSimStage() { const f = cupNext(); if (!f) return; let m, g = 0; while ((m = cupNext()) && m.phase === f.phase && g++ < 200) cupQuick(m); }
-function cupStatus() {
-  const c = CUP.active;
-  if (!c) return 'без команд · 8 или 16 игроков';
-  if (c.champion >= 0) return `завершён · победил ${PL.get(c.champion).nickname}`;
-  const n = c.matches.filter(m => m.played).length;
-  return `идёт · ${c.size} игроков · сыграно матчей: ${n}`;
+function tQuick(t, m) {
+  const [x, y] = simMatch(tPlayer(t, m.t1), tTeam(t, m.t1), tPlayer(t, m.t2), tTeam(t, m.t2));
+  tReport(t, m, x, y);
+}
+function tSimStage(t) { const f = tNext(t); if (!f) return; let m, g = 0; while ((m = tNext(t)) && m.phase === f.phase && g++ < 300) tQuick(t, m); }
+function tStatus(kind) {
+  const t = tourStore(kind).active;
+  if (!t) return kind === 'pro' ? '24 команды · группы и плей-офф' : 'без команд · 4, 8, 16 или 24 игрока';
+  if (t.champion >= 0) return `завершён · победил ${tName(t, t.champion)}`;
+  return `идёт · ${kind === 'pro' ? 'команд' : 'игроков'}: ${t.size} · сыграно матчей: ${t.matches.filter(m => m.played).length}`;
 }
 
 // ---------- экраны ----------
-function showCupHome() {
-  if (CUP.active) { showCup(); return; }
-  let h = topbar('Турнир вне сезона', showMenu) + `<div class="scroll">
-    <div class="card alt dim" style="font-size:13px">Играют только игроки, без команд — побеждает чистая сила. Выбери формат, потом участников.</div>
-    <div class="card tap" ${on(() => showCupPick(8, []))}><div class="rc"><div class="cup-n">8</div><div class="tx"><b>8 игроков</b><span class="acc">Double Elimination: верхняя и нижняя сетка, гранд-финал</span></div><span class="chev">›</span></div></div>
-    <div class="card tap" ${on(() => showCupPick(16, []))}><div class="rc"><div class="cup-n">16</div><div class="tx"><b>16 игроков</b><span class="acc">4 группы по 4 (два круга), затем плей-офф как на ЧМ</span></div><span class="chev">›</span></div></div>
-    ${cupHistory()}</div>`;
+const eslHead = (kind, sub) => kind === 'pro'
+  ? `<div class="epl-hero" style="background-image:url('${img('epl')}')"><span>${esc(sub)}</span></div>`
+  : `<div class="esl-hero"><div class="logo"><img src="${img('esl')}" alt="ESL"></div><div><b>ESL ONE</b><span>${esc(sub)}</span></div></div>`;
+
+function showOneHome() {
+  if (ONE.active) { showTour('one'); return; }
+  let h = topbar('ESL One', showMenu) + `<div class="scroll esl-one">${eslHead('one', 'Разовый турнир игроков без команд — побеждает чистая сила')}`;
+  for (const n of [4, 8, 16, 24]) {
+    const F = FORMATS[n];
+    h += `<div class="card tap" ${on(() => showPick('one', n, []))}><div class="rc"><div class="cup-n">${n}</div><div class="tx"><b>${n} игроков · ${esc(F.title)}</b><span class="acc">${esc(F.desc)}</span></div><span class="chev">›</span></div></div>`;
+  }
+  h += '</div>';
   screen(h);
 }
-function cupHistory() {
-  if (!CUP.history.length) return '';
-  let h = sec('Победители турниров');
-  CUP.history.slice(-10).reverse().forEach(x => { const p = PL.get(x.player); if (p) h += `<div class="hist"><span class="s">${x.size} игроков</span><span class="flagi">${flagImg(p)}</span><b class="ell" style="flex:1">${esc(p.nickname)}</b><span class="dim">${esc(REG_SHORT[p.region])}</span></div>`; });
-  return h;
+function showProHome() {
+  if (PRO.active) { showTour('pro'); return; }
+  const F = FORMATS[24];
+  screen(topbar('ESL Pro League', showMenu) + `<div class="scroll esl-pro">${eslHead('pro', `Сезон ${PRO.edition + 1}`)}
+    <div class="card"><b class="pro-y">24 команды</b><div class="dim" style="font-size:13px;margin-top:4px">${esc(F.desc)}</div>
+    <div class="dim" style="font-size:13px;margin-top:6px">Ты выбираешь 24 команды, игроков в них раздаёт автодрафт (каждая команда берёт игрока своего региона). Победитель — <b class="pro-y">чемпион мира по версии ESL</b>.</div></div>
+    <button class="btn pro-btn" ${on(() => showPick('pro', 24, []))}>ВЫБРАТЬ 24 КОМАНДЫ</button></div>`);
 }
-function showCupPick(size, sel) {
+function showPick(kind, size, sel) {
   const prev = app.querySelector('.scroll.cpick'); const keep = prev ? prev.scrollTop : 0;
-  const toggle = id => { const i = sel.indexOf(id); if (i >= 0) sel.splice(i, 1); else if (sel.length < size) sel.push(id); showCupPick(size, sel); };
-  let h = topbar(`Турнир · ${size} игроков`, showCupHome) + '<div class="scroll cpick">';
+  const toggle = id => { const i = sel.indexOf(id); if (i >= 0) sel.splice(i, 1); else if (sel.length < size) sel.push(id); showPick(kind, size, sel); };
+  const back = kind === 'pro' ? showProHome : showOneHome;
+  let h = topbar(kind === 'pro' ? 'Pro League · выбор команд' : `ESL One · ${size} игроков`, back) + `<div class="scroll cpick ${kind === 'pro' ? 'esl-pro' : 'esl-one'}">`;
   for (let r = 0; r < 5; r++) {
-    h += `<div class="reg-h"><span class="bar" style="background:${RCOL[r]}"></span>${regionLogo(r)}<b style="color:${RCOL[r]}">${esc(REG[r].toUpperCase())}</b></div><div class="pgrid">`;
-    for (const p of inRegion(r)) {
-      const on1 = sel.includes(p.id);
-      h += `<div class="pc ${!on1 && sel.length >= size ? 'off' : ''}" ${on(() => toggle(p.id))}>${portrait(p, null, on1 ? COL.gold : COL.panel2)}${on1 ? '<span class="num">✓</span>' : ''}<div class="nick ell">${esc(p.nickname)}</div></div>`;
+    h += `<div class="reg-h"><span class="bar" style="background:${RCOL[r]}"></span>${regionLogo(r)}<b style="color:${RCOL[r]}">${esc(REG[r].toUpperCase())}</b></div>`;
+    if (kind === 'pro') {
+      h += '<div class="tgrid">';
+      for (const t of teamsIn(r)) {
+        const s = sel.includes(t.id);
+        h += `<div class="tc ${s ? 'on' : ''} ${!s && sel.length >= size ? 'off' : ''}" ${on(() => toggle(t.id))}>${logo(t)}<span>${esc(t.name)}</span></div>`;
+      }
+    } else {
+      h += '<div class="pgrid">';
+      for (const p of inRegion(r)) {
+        const s = sel.includes(p.id);
+        h += `<div class="pc ${!s && sel.length >= size ? 'off' : ''}" ${on(() => toggle(p.id))}>${portrait(p, null, s ? COL.gold : COL.panel2)}${s ? '<span class="num">✓</span>' : ''}<div class="nick ell">${esc(p.nickname)}</div></div>`;
+      }
     }
     h += '</div>';
   }
   const full = sel.length === size;
+  const pool = kind === 'pro' ? DATA.teams.map(t => t.id) : DATA.players.map(p => p.id);
   h += `</div><div class="bottom"><div class="cup-count"><b>${sel.length}</b> из ${size} выбрано</div>
-    <div class="row2"><button class="btn" ${on(() => showCupPick(size, []))}>Очистить</button>
-    <button class="btn" ${full ? 'disabled' : on(() => { const rest = shuffle(DATA.players.map(p => p.id).filter(id => !sel.includes(id))); showCupPick(size, sel.concat(rest.slice(0, size - sel.length))); })}>Добавить случайно</button></div>
-    <button class="btn main" ${full ? on(() => { cupNew(size, sel); showCup(); }) : 'disabled'}>${full ? 'НАЧАТЬ ТУРНИР' : `Выбери ещё ${size - sel.length}`}</button></div>`;
+    <div class="row2"><button class="btn" ${on(() => showPick(kind, size, []))}>Очистить</button>
+    <button class="btn" ${full ? 'disabled' : on(() => { const rest = shuffle(pool.filter(id => !sel.includes(id))); showPick(kind, size, sel.concat(rest.slice(0, size - sel.length))); })}>Добавить случайно</button></div>
+    <button class="btn main ${kind === 'pro' ? 'pro-btn' : ''}" ${full ? on(() => { tourNew(kind, size, sel); showTour(kind); }) : 'disabled'}>${full ? (kind === 'pro' ? 'АВТОДРАФТ И СТАРТ' : 'НАЧАТЬ ТУРНИР') : `Выбери ещё ${size - sel.length}`}</button></div>`;
   screen(h);
   app.querySelector('.scroll.cpick').scrollTop = keep;
 }
-function bp(m, side) {
-  const id = m[side], p = id >= 0 ? PL.get(id) : null;
+function bp(t, m, side) {
+  const id = m[side];
   const sc = side === 't1' ? m.s1 : m.s2;
   const w = m.played && win(m) === id, l = m.played && !w;
-  return `<div class="bp ${w ? 'w' : ''} ${l ? 'l' : ''}">${p ? `<span class="flagi">${flagImg(p)}</span><span class="ell">${esc(p.nickname)}</span>` : '<span class="dim">—</span>'}<b>${m.played ? sc : ''}</b></div>`;
+  let who;
+  if (id < 0) who = `<span class="dim">${esc(src2txt(m.src && m.src[side === 't1' ? 0 : 1]) || '—')}</span>`;
+  else if (t.kind === 'pro') { const tm = TM.get(id); who = `${logo(tm)}<span class="ell">${esc(tm.name)}</span>`; }
+  else { const p = PL.get(id); who = `<span class="flagi">${flagImg(p)}</span><span class="ell">${esc(p.nickname)}</span>`; }
+  return `<div class="bp ${w ? 'w' : ''} ${l ? 'l' : ''}">${who}<b>${m.played ? sc : ''}</b></div>`;
 }
-const bmatch = (m, next) => m ? `<div class="bm ${m === next ? 'next' : ''}">${bp(m, 't1')}${bp(m, 't2')}</div>` : '<div class="bm ghost"><div class="bp"><span class="dim">—</span></div><div class="bp"><span class="dim">—</span></div></div>';
-function bracket(cols, next) {
-  return `<div class="brk">${cols.map(([title, ms]) => `<div class="bcol"><div class="bh">${esc(title)}</div><div class="bl">${ms.map(m => bmatch(m, next)).join('')}</div></div>`).join('')}</div>`;
+const bmatch = (t, m, next) => `<div class="bm ${m === next ? 'next' : ''} ${m.t1 < 0 && m.t2 < 0 ? 'ghost' : ''}">${bp(t, m, 't1')}${bp(t, m, 't2')}</div>`;
+function bracket(t, cols, next) {
+  return `<div class="brk">${cols.map(([title, keys]) => `<div class="bcol"><div class="bh">${esc(title)}</div><div class="bl">${keys.map(k => bmatch(t, tM(t, k), next)).join('')}</div></div>`).join('')}</div>`;
 }
-function showCup() {
-  const c = CUP.active; if (!c) { showCupHome(); return; }
-  const next = cupNext();
+function tourChampion(t) {
+  const p = tPlayer(t, t.champion), tm = tTeam(t, t.champion);
+  const title = t.kind === 'pro' ? 'ЧЕМПИОН МИРА ПО ВЕРСИИ ESL' : 'ПОБЕДИТЕЛЬ ESL ONE';
+  return `<div class="big-champ ${t.kind === 'pro' ? 'pro' : ''}"><h3>${title}</h3><div class="pair">${tm ? logo(tm) : ''}${portrait(p, tm, COL.gold)}</div>
+    <div class="nm">${tm ? esc(tm.name) + ' · ' : ''}${esc(p.nickname)}</div><div class="dim">${esc(REG[p.region])} · ${t.kind === 'pro' ? 'ESL Pro League, сезон ' + t.edition : 'ESL One, ' + t.size + ' игроков'}</div></div>`;
+}
+function showTour(kind) {
+  const T = tourStore(kind), t = T.active;
+  if (!t) { kind === 'pro' ? showProHome() : showOneHome(); return; }
+  const F = FORMATS[t.size], next = tNext(t);
   let armed = false;
-  const reset = `<button class="side-btn" ${on((e, el) => { if (!armed && c.champion < 0) { armed = true; el.textContent = 'точно?'; el.style.color = COL.bad; return; } CUP.active = null; saveCup(); showCupHome(); })}>${c.champion >= 0 ? 'новый' : 'сброс'}</button>`;
-  let h = topbar(`Турнир · ${c.size} игроков`, showMenu, reset) + '<div class="scroll">';
-  if (c.champion >= 0) {
-    const p = PL.get(c.champion);
-    h += `<div class="big-champ"><h3>ПОБЕДИТЕЛЬ ТУРНИРА</h3><div class="pair">${portrait(p, null, COL.gold)}</div><div class="nm">${esc(p.nickname)}</div><div class="dim">${esc(REG[p.region])} · ${c.size} игроков</div></div>`;
-  }
-  if (c.size === 8) {
-    const g = k => c.matches.find(m => m.key === k);
-    h += sec('Верхняя сетка') + bracket([['1/4 финала', ['WB1a', 'WB1b', 'WB1c', 'WB1d'].map(g)], ['Полуфинал', ['WB2a', 'WB2b'].map(g)], ['Финал ВС', [g('WBF')]], ['Гранд-финал', [g('GF'), ...(g('GF2') ? [g('GF2')] : [])]]], next);
-    h += sec('Нижняя сетка') + bracket([['Раунд 1', ['LB1a', 'LB1b'].map(g)], ['Раунд 2', ['LB2a', 'LB2b'].map(g)], ['Полуфинал НС', [g('LB3')]], ['Финал НС', [g('LBF')]]], next);
-    h += '<div class="dim" style="font-size:12px">Проигравший в верхней сетке падает в нижнюю, второе поражение — вылет. Если в гранд-финале побеждает игрок из нижней сетки, играется ещё один финал (перезапуск сетки).</div>';
-  } else {
-    const ko = ph => c.matches.filter(m => m.phase === ph);
-    const pad = (arr, n) => arr.concat(Array(Math.max(0, n - arr.length)).fill(null));
-    h += sec('Плей-офф') + bracket([['Четвертьфинал', pad(ko('qf'), 4)], ['Полуфинал', pad(ko('sf'), 2)], ['Финал', pad(ko('f'), 1)]], next);
-    for (let gi = 0; gi < 4; gi++) {
-      h += sec('Группа ' + 'ABCD'[gi]) + '<div class="th"><span></span><span></span><span></span><span>игрок</span><span class="c">В-П</span><span class="c">карты</span></div>';
-      const ms = cupGroupMatches(gi);
-      standingsOf(ms).forEach((row, i) => {
-        const p = PL.get(row.team);
-        h += `<div class="tr2"><span class="mk" style="background:${i < 2 ? COL.good : '#1A2135'}"></span><span class="pl">${i + 1}</span>${portrait(p, null)}
-          <div class="nm"><b class="ell">${esc(p.nickname)}</b><small style="color:${RCOL[p.region]}">${esc(REG[p.region])}</small></div>
+  const reset = `<button class="side-btn" ${on((e, el) => { if (!armed && t.champion < 0) { armed = true; el.textContent = 'точно?'; el.style.color = COL.bad; return; } T.active = null; saveTour(kind); kind === 'pro' ? showProHome() : showOneHome(); })}>${t.champion >= 0 ? 'новый' : 'сброс'}</button>`;
+  const title = kind === 'pro' ? `Pro League · сезон ${t.edition}` : `ESL One · ${t.size} игроков`;
+  let h = topbar(title, showMenu, reset) + `<div class="scroll ${kind === 'pro' ? 'esl-pro' : 'esl-one'}">`;
+  if (t.champion >= 0) h += tourChampion(t);
+  for (const [stitle, cols] of F.layout) h += sec(stitle) + bracket(t, cols, next);
+  if (F.groups) {
+    for (let gi = 0; gi < F.groups; gi++) {
+      h += sec('Группа ' + 'ABCD'[gi]) + `<div class="th"><span></span><span></span><span></span><span>${kind === 'pro' ? 'команда' : 'игрок'}</span><span class="c">В-П</span><span class="c">карты</span></div>`;
+      standingsOf(tGroupMatches(t, gi)).forEach((row, i) => {
+        const p = tPlayer(t, row.team), tm = tTeam(t, row.team);
+        const mark = t.size === 24 ? (i === 0 ? COL.gold : i < 3 ? COL.good : '#1A2135') : (i < F.adv ? COL.good : '#1A2135');
+        const note = t.size === 24 ? (i === 0 ? 'плей-ин' : i < 3 ? 'плей-офф' : '') : '';
+        h += `<div class="tr2"><span class="mk" style="background:${mark}"></span><span class="pl">${i + 1}</span>${tm ? logo(tm) : portrait(p, null)}
+          <div class="nm"><b class="ell">${esc(tm ? tm.name : p.nickname)}</b><small>${tm ? `<span class="acc">${esc(p.nickname)}</span>` : `<span style="color:${RCOL[p.region]}">${esc(REG[p.region])}</span>`}${note ? ` <span style="color:${mark}">${note}</span>` : ''}</small></div>
           <span class="c w">${row.wins}-${row.losses}</span><span class="c dim">${row.mw}:${row.ml}</span></div>`;
       });
     }
   }
-  h += cupHistory() + '</div>';
+  h += '</div>';
   if (next) {
-    const a = PL.get(next.t1), b = PL.get(next.t2);
+    const a = tPlayer(t, next.t1), b = tPlayer(t, next.t2), ta = tTeam(t, next.t1), tb = tTeam(t, next.t2);
+    const sub = (p, tm) => esc(tm ? tm.name : REG[p.region]);
     h += `<div class="bottom"><div class="np-title">Следующий матч · ${esc(next.label)}</div>
-      <div class="np">${portrait(a, null, COL.p1)}<div class="t"><b class="ell" style="color:${COL.p1}">${esc(a.nickname)}</b><small class="ell" style="display:block">${esc(REG[a.region])}</small></div><span class="v">VS</span>
-      <div class="t r"><b class="ell" style="color:${COL.p2}">${esc(b.nickname)}</b><small class="ell" style="display:block">${esc(REG[b.region])}</small></div>${portrait(b, null, COL.p2)}</div>
-      <button class="btn main" ${on(() => startMatch(a, null, b, null, `Турнир · ${next.label}`, (s1, s2) => { cupReport(next, s1, s2); showCup(); }, showCup))}>СМОТРЕТЬ МАТЧ</button>
-      <div class="row2"><button class="btn" ${on(() => { cupQuick(next); showCup(); })}>Быстрый результат</button><button class="btn" ${on(() => { cupSimStage(); showCup(); })}>Досчитать этап</button></div></div>`;
-  } else if (c.champion >= 0) {
-    h += `<div class="bottom"><button class="btn main" ${on(() => { CUP.active = null; saveCup(); showCupHome(); })}>НОВЫЙ ТУРНИР</button></div>`;
+      <div class="np">${portrait(a, ta, COL.p1)}<div class="t"><b class="ell" style="color:${COL.p1}">${esc(a.nickname)}</b><small class="ell" style="display:block">${sub(a, ta)}</small></div><span class="v">VS</span>
+      <div class="t r"><b class="ell" style="color:${COL.p2}">${esc(b.nickname)}</b><small class="ell" style="display:block">${sub(b, tb)}</small></div>${portrait(b, tb, COL.p2)}</div>
+      <button class="btn main ${kind === 'pro' ? 'pro-btn' : ''}" ${on(() => startMatch(a, ta, b, tb, `${kind === 'pro' ? 'Pro League' : 'ESL One'} · ${next.label}`, (s1, s2) => { tReport(t, next, s1, s2); showTour(kind); }, () => showTour(kind)))}>СМОТРЕТЬ МАТЧ</button>
+      <div class="row2"><button class="btn" ${on(() => { tQuick(t, next); showTour(kind); })}>Быстрый результат</button><button class="btn" ${on(() => { tSimStage(t); showTour(kind); })}>Досчитать этап</button></div></div>`;
+  } else if (t.champion >= 0) {
+    h += `<div class="bottom"><button class="btn main ${kind === 'pro' ? 'pro-btn' : ''}" ${on(() => { T.active = null; saveTour(kind); kind === 'pro' ? showProHome() : showOneHome(); })}>${kind === 'pro' ? 'НОВЫЙ СЕЗОН PRO LEAGUE' : 'НОВЫЙ ТУРНИР'}</button></div>`;
   }
   screen(h);
+}
+
+// ================= ЗАЛ СЛАВЫ =================
+function hallCard(p, tm, label, big) {
+  if (!p) return '';
+  return `<div class="hall ${big ? 'big' : ''}">${portrait(p, tm, big ? COL.gold : COL.panel2)}<div class="hx"><span class="hl">${esc(label)}</span><b class="ell">${esc(p.nickname)}</b>
+    ${tm ? `<span class="tt">${logo(tm)}<span>${esc(tm.name)}</span></span>` : `<span style="color:${RCOL[p.region]};font-size:12px">${esc(REG[p.region])}</span>`}</div><span class="flagi">${flagImg(p)}</span></div>`;
+}
+function showHall(tab) {
+  const tabs = ['Чемпионы мира', 'Pro League', 'ESL One'];
+  let h = topbar('Зал славы', showMenu) + `<div class="tabs t3">${tabs.map((n, i) => `<button class="btn ${i === tab ? 'on' : ''}" ${on(() => showHall(i))}>${n}</button>`).join('')}</div><div class="scroll">`;
+  let list = [];
+  if (tab === 0) {
+    list = D.historyTeams.map((tid, i) => ({ p: PL.get(D.historyPids[i]), tm: TM.get(tid), label: `Сезон ${i + 1}` }));
+    h += `<div class="dim" style="font-size:13px">Победители чемпионата мира в сезонах лиги. После 10-го сезона цикл начинается заново с 1-го сезона.</div>`;
+  } else if (tab === 1) {
+    list = PRO.history.map(x => ({ p: PL.get(x.player), tm: TM.get(x.team), label: `ESL Pro League · сезон ${x.edition}` }));
+    h += eslHead('pro', 'Чемпионы мира по версии ESL');
+  } else {
+    list = ONE.history.map(x => ({ p: PL.get(x.player), tm: null, label: `ESL One · ${x.size} игроков` }));
+    h += eslHead('one', 'Победители разовых турниров');
+  }
+  list = list.filter(x => x.p).reverse();
+  if (!list.length) h += `<div class="card dim" style="text-align:center;padding:28px 12px">Пока пусто — здесь появятся победители.</div>`;
+  else {
+    h += sec(tab === 0 ? 'Действующий чемпион мира' : tab === 1 ? 'Действующий чемпион мира ESL' : 'Последний победитель') + hallCard(list[0].p, list[0].tm, list[0].label, true);
+    if (list.length > 1) { h += sec('Прошлые победители'); list.slice(1).forEach(x => h += hallCard(x.p, x.tm, x.label, false)); }
+  }
+  screen(h + '</div>');
 }
 
 // ================= НАСТРОЙКИ =================
@@ -990,7 +1112,7 @@ function syncText() {
   return { local: 'Сохранение: на этом устройстве', loading: 'Сохранение: подключаюсь к облаку…', cloud: 'Сохранение: в облаке claude.ai', error: 'Облако недоступно, сохраняю на устройстве' }[CLOUD.state];
 }
 function paintSync() { const el = document.getElementById('sync'); if (el) { el.textContent = syncText(); el.className = 'sync ' + CLOUD.state; } }
-const cloudBody = k => k === 'season' ? D : k === 'cup' ? CUP : OV;
+const cloudBody = k => k === 'season' ? D : k === 'cup' ? ONE : k === 'pro' ? PRO : OV;
 async function cloudSave(k) {
   if (!CLOUD.on) return;
   CLOUD.dirty[k] = true;
@@ -1012,7 +1134,7 @@ async function cloudInit() {
     const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
     if (!db || !user || !user.isOwner()) { CLOUD.state = 'local'; paintSync(); return; }
     CLOUD.db = db;
-    const [s, o, cu] = await Promise.all([db.doc('save/season').get(), db.doc('save/settings').get(), db.doc('save/cup').get()]);
+    const [s, o, cu, pr] = await Promise.all([db.doc('save/season').get(), db.doc('save/settings').get(), db.doc('save/cup').get(), db.doc('save/pro').get()]);
     let changed = false;
     if (o.exists) { const v = o.data(); OV = { power: { ...(v.power || {}) }, bonus: { ...(v.bonus || {}) }, skill: { ...(v.skill || {}) } }; store.set(OKEY, OV); applyOV(); changed = true; }
     if (s.exists) {
@@ -1022,8 +1144,9 @@ async function cloudInit() {
     CLOUD.on = true; CLOUD.state = 'cloud'; paintSync();
     if (!s.exists) cloudSave('season');      // первый запуск: переносим локальный прогресс в облако
     if (!o.exists) cloudSave('settings');
-    if (cu.exists) { const v = JSON.parse(JSON.stringify(cu.data())); CUP = { active: v.active || null, history: Array.isArray(v.history) ? v.history : [] }; store.set(CKEY, CUP); changed = true; }
-    else cloudSave('cup');
+    if (cu.exists) { ONE = JSON.parse(JSON.stringify(cu.data())); changed = true; } else cloudSave('cup');
+    if (pr.exists) { PRO = JSON.parse(JSON.stringify(pr.data())); changed = true; } else cloudSave('pro');
+    sanitizeTours(); store.set(OKEY1, ONE); store.set(PKEY, PRO);
     if (changed && !M) showMenu();
   } catch (e) { CLOUD.state = 'error'; paintSync(); }
 }
