@@ -629,8 +629,9 @@ function startWC() {
 function advanceWC1() {
   const ms = S.matches(ST.WC1);
   if (ms.some(m => !m.played)) return;
-  const alive = ms.map(win); if (D.wcBye >= 0) alive.push(D.wcBye);
-  startKing(shuffle(alive));
+  // команда, прошедшая первый этап без игры, всегда открывает «царя горы» первым матчем
+  const alive = shuffle(ms.map(win));
+  startKing(D.wcBye >= 0 ? [D.wcBye, ...alive] : alive);
 }
 function startKing(queue) {
   D.wcQueue = queue;
@@ -1077,7 +1078,7 @@ function showWildCard() {
   const holderBox = (label, tid, extra) => { const t = TM.get(tid), p = S.playerOf(tid); return `<div class="card"><div class="gold" style="font:14px var(--display);margin-bottom:8px">${label}</div><div class="champ-line" style="margin:0">${logo(t, '')}${portrait(p, t, COL.gold)}<div class="who"><b class="ell">${esc(t.name)}</b><span>${esc(p ? p.nickname : '')}${extra}</span></div></div></div>`; };
   if (D.wcWinner >= 0) h += holderBox('ПОБЕДИТЕЛЬ WILD CARD', D.wcWinner, '');
   else if (next && next.stage === ST.WC1) {
-    h += `<div class="card"><div class="gold" style="font:14px var(--display)">ПЕРВЫЙ ЭТАП</div><span class="dim">сыграно ${st1.length - left1} из ${st1.length} · дальше пройдут ${st1.length + (D.wcBye >= 0 ? 1 : 0)} команд${D.wcBye >= 0 ? ` (${esc(TM.get(D.wcBye).name)} — без игры)` : ''}</span></div>`;
+    h += `<div class="card"><div class="gold" style="font:14px var(--display)">ПЕРВЫЙ ЭТАП</div><span class="dim">сыграно ${st1.length - left1} из ${st1.length} · дальше пройдут ${st1.length + (D.wcBye >= 0 ? 1 : 0)} команд${D.wcBye >= 0 ? ` (${esc(TM.get(D.wcBye).name)} — без игры, откроет «царя горы» первым матчем)` : ''}</span></div>`;
   }
   else if (next) {
     let streak = 0; for (let i = ms.length - 1; i >= 0 && ms[i].played && win(ms[i]) === next.t1; i--) streak++;
