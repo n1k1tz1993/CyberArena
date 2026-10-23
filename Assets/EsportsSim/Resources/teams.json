@@ -1,0 +1,371 @@
+{
+ "teams": [
+  {
+   "id": 1,
+   "name": "Cloud9",
+   "region": 0,
+   "bonus": 4,
+   "logo": "t101"
+  },
+  {
+   "id": 2,
+   "name": "CLG",
+   "region": 0,
+   "bonus": 4,
+   "logo": "t102"
+  },
+  {
+   "id": 3,
+   "name": "Team Curse",
+   "region": 0,
+   "bonus": 4,
+   "logo": "t103"
+  },
+  {
+   "id": 4,
+   "name": "Dignitas",
+   "region": 0,
+   "bonus": 1,
+   "logo": "t104"
+  },
+  {
+   "id": 5,
+   "name": "Evil Geniuses",
+   "region": 0,
+   "bonus": 2,
+   "logo": "t105"
+  },
+  {
+   "id": 6,
+   "name": "Team Liquid",
+   "region": 0,
+   "bonus": 6,
+   "logo": "t106"
+  },
+  {
+   "id": 7,
+   "name": "Lyon",
+   "region": 0,
+   "bonus": 4,
+   "logo": "t107"
+  },
+  {
+   "id": 8,
+   "name": "MYM",
+   "region": 0,
+   "bonus": 4,
+   "logo": "t108"
+  },
+  {
+   "id": 9,
+   "name": "Complexity",
+   "region": 0,
+   "bonus": 4,
+   "logo": "t109c",
+   "fullLogo": true
+  },
+  {
+   "id": 10,
+   "name": "TSM",
+   "region": 0,
+   "bonus": 3,
+   "logo": "t110"
+  },
+  {
+   "id": 11,
+   "name": "Alliance",
+   "region": 1,
+   "bonus": 5,
+   "logo": "t201"
+  },
+  {
+   "id": 12,
+   "name": "ALTERNATE aTTaX",
+   "region": 1,
+   "bonus": 1,
+   "logo": "t202"
+  },
+  {
+   "id": 13,
+   "name": "Fnatic",
+   "region": 1,
+   "bonus": 3,
+   "logo": "t203"
+  },
+  {
+   "id": 14,
+   "name": "G2 Esports",
+   "region": 1,
+   "bonus": 5,
+   "logo": "t204"
+  },
+  {
+   "id": 15,
+   "name": "Giants",
+   "region": 1,
+   "bonus": 3,
+   "logo": "t205"
+  },
+  {
+   "id": 16,
+   "name": "Karmine Corp",
+   "region": 1,
+   "bonus": 1,
+   "logo": "t206"
+  },
+  {
+   "id": 17,
+   "name": "Ninjas in Pyjamas",
+   "region": 1,
+   "bonus": 4,
+   "logo": "t207n",
+   "fullLogo": true
+  },
+  {
+   "id": 18,
+   "name": "Dark Passage",
+   "region": 1,
+   "bonus": 3,
+   "logo": "t208d",
+   "fullLogo": true
+  },
+  {
+   "id": 19,
+   "name": "SK Gaming",
+   "region": 1,
+   "bonus": 4,
+   "logo": "t209"
+  },
+  {
+   "id": 20,
+   "name": "Beşiktaş Esports",
+   "region": 1,
+   "bonus": 3,
+   "logo": "t210b",
+   "fullLogo": true
+  },
+  {
+   "id": 21,
+   "name": "Team Empire",
+   "region": 2,
+   "bonus": 3,
+   "logo": "t301"
+  },
+  {
+   "id": 22,
+   "name": "Gambit",
+   "region": 2,
+   "bonus": 3,
+   "logo": "t302"
+  },
+  {
+   "id": 23,
+   "name": "M19",
+   "region": 2,
+   "bonus": 3,
+   "logo": "t303"
+  },
+  {
+   "id": 24,
+   "name": "Moscow Five",
+   "region": 2,
+   "bonus": 3,
+   "logo": "t304"
+  },
+  {
+   "id": 25,
+   "name": "OneBreatch Gaming",
+   "region": 2,
+   "bonus": 4,
+   "logo": "t305"
+  },
+  {
+   "id": 26,
+   "name": "RoX",
+   "region": 2,
+   "bonus": 4,
+   "logo": "t306"
+  },
+  {
+   "id": 27,
+   "name": "Team Just",
+   "region": 2,
+   "bonus": 5,
+   "logo": "t307"
+  },
+  {
+   "id": 28,
+   "name": "Team Spirit",
+   "region": 2,
+   "bonus": 4,
+   "logo": "t308"
+  },
+  {
+   "id": 29,
+   "name": "Vega Squadron",
+   "region": 2,
+   "bonus": 3,
+   "logo": "t309"
+  },
+  {
+   "id": 30,
+   "name": "Virtus.pro",
+   "region": 2,
+   "bonus": 1,
+   "logo": "t310"
+  },
+  {
+   "id": 31,
+   "name": "ahq e-Sports Club",
+   "region": 3,
+   "bonus": 2,
+   "logo": "t401"
+  },
+  {
+   "id": 32,
+   "name": "EDG",
+   "region": 3,
+   "bonus": 4,
+   "logo": "t402"
+  },
+  {
+   "id": 33,
+   "name": "EHOME",
+   "region": 3,
+   "bonus": 4,
+   "logo": "t403"
+  },
+  {
+   "id": 34,
+   "name": "Flash Wolves",
+   "region": 3,
+   "bonus": 4,
+   "logo": "t404"
+  },
+  {
+   "id": 35,
+   "name": "Invictus Gaming",
+   "region": 3,
+   "bonus": 6,
+   "logo": "t405"
+  },
+  {
+   "id": 36,
+   "name": "LGD Gaming",
+   "region": 3,
+   "bonus": 1,
+   "logo": "t406"
+  },
+  {
+   "id": 37,
+   "name": "Sentinels Singapore",
+   "region": 3,
+   "bonus": 4,
+   "logo": "t407"
+  },
+  {
+   "id": 38,
+   "name": "Taipei Assassins",
+   "region": 3,
+   "bonus": 6,
+   "logo": "t408"
+  },
+  {
+   "id": 39,
+   "name": "Vici Gaming",
+   "region": 3,
+   "bonus": 3,
+   "logo": "t409"
+  },
+  {
+   "id": 40,
+   "name": "Team WE",
+   "region": 3,
+   "bonus": 3,
+   "logo": "t410"
+  },
+  {
+   "id": 41,
+   "name": "CJ Entus Blaze",
+   "region": 4,
+   "bonus": 4,
+   "logo": "t501",
+   "fullLogo": true
+  },
+  {
+   "id": 42,
+   "name": "CJ Entus Frost",
+   "region": 4,
+   "bonus": 6,
+   "logo": "t502",
+   "fullLogo": true
+  },
+  {
+   "id": 43,
+   "name": "Incredible Miracle",
+   "region": 4,
+   "bonus": 1,
+   "logo": "t503"
+  },
+  {
+   "id": 44,
+   "name": "Jin Air Falcons",
+   "region": 4,
+   "bonus": 3,
+   "logo": "t504",
+   "fullLogo": true
+  },
+  {
+   "id": 45,
+   "name": "Jin Air Stealths",
+   "region": 4,
+   "bonus": 4,
+   "logo": "t505",
+   "fullLogo": true
+  },
+  {
+   "id": 46,
+   "name": "KT Rolster A",
+   "region": 4,
+   "bonus": 4,
+   "logo": "t506",
+   "fullLogo": true
+  },
+  {
+   "id": 47,
+   "name": "KT Rolster B",
+   "region": 4,
+   "bonus": 6,
+   "logo": "t507",
+   "fullLogo": true
+  },
+  {
+   "id": 48,
+   "name": "Najin Sword",
+   "region": 4,
+   "bonus": 3,
+   "logo": "t508"
+  },
+  {
+   "id": 49,
+   "name": "Najin Shield",
+   "region": 4,
+   "bonus": 4,
+   "logo": "t509"
+  },
+  {
+   "id": 50,
+   "name": "Samsung Galaxy",
+   "region": 4,
+   "bonus": 3,
+   "logo": "t510"
+  },
+  {
+   "id": 51,
+   "name": "SK Telecom T1",
+   "region": 4,
+   "bonus": 3,
+   "logo": "t511"
+  }
+ ]
+}
