@@ -303,10 +303,11 @@
   },
   {
    "id": 43,
-   "name": "Incredible Miracle",
+   "name": "Longzhu Gaming IM",
    "region": 4,
    "bonus": 1,
-   "logo": "t503"
+   "logo": "t5lz",
+   "fullLogo": true
   },
   {
    "id": 44,
@@ -429,6 +430,13 @@
    "region": 3,
    "bonus": 2,
    "logo": "t412"
+  },
+  {
+   "id": 60,
+   "name": "Newbee",
+   "region": 4,
+   "bonus": 4,
+   "logo": "t512"
   }
  ]
 }
