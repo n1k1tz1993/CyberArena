@@ -337,3 +337,17 @@ textarea:focus { outline: 2px solid var(--accent); }
 .picker.pro { background: #111; border-bottom: 2px solid var(--pro); }
 .picker.pro small { color: var(--pro); }
 .reg-h .dim { margin-left: auto; }
+
+/* ===== Карьера ===== */
+.career { padding: 4px 0 12px; }
+.cinp { width: 100%; box-sizing: border-box; padding: 12px 14px; margin: 6px 0 4px; border-radius: 12px; border: 1px solid #2E3858; background: #1B2238; color: #EEF1FA; font: inherit; font-size: 18px; }
+.fgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 8px; margin-top: 6px; }
+.fc { aspect-ratio: 3 / 2; border-radius: 8px; border: 2px solid transparent; background: #1B2238; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; }
+.fc img { width: 100%; height: 100%; object-fit: cover; }
+.fc.on { border-color: #FFC940; }
+.car-hero { display: flex; gap: 14px; align-items: center; margin: 10px 0; }
+.car-hero .pt { width: 120px; height: 120px; flex: 0 0 120px; }
+.car-inf { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.bar-track { height: 10px; border-radius: 6px; background: #252E4A; overflow: hidden; }
+.bar-track i { display: block; height: 100%; background: linear-gradient(90deg, #2EE6D6, #FFC940); }
+.car-done { margin: 12px 0; padding: 12px 14px; border-radius: 12px; border: 1px solid #FFC940; background: rgba(255, 201, 64, 0.08); font-size: 14px; line-height: 1.4; }

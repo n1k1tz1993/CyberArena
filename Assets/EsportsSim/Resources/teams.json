@@ -437,6 +437,86 @@
    "region": 4,
    "bonus": 4,
    "logo": "t512"
+  },
+  {
+   "id": 61,
+   "name": "Copenhagen Wolves",
+   "region": 5,
+   "bonus": 2,
+   "logo": "pool_wolves",
+   "fullLogo": true,
+   "pool": true,
+   "player": 101
+  },
+  {
+   "id": 62,
+   "name": "Melty eSports",
+   "region": 5,
+   "bonus": 2,
+   "logo": "pool_melty",
+   "fullLogo": true,
+   "pool": true,
+   "player": 102
+  },
+  {
+   "id": 63,
+   "name": "Millenium",
+   "region": 5,
+   "bonus": 2,
+   "logo": "pool_millenium",
+   "fullLogo": true,
+   "pool": true,
+   "player": 103
+  },
+  {
+   "id": 64,
+   "name": "Wayi Spider",
+   "region": 5,
+   "bonus": 2,
+   "logo": "pool_spider",
+   "fullLogo": true,
+   "pool": true,
+   "player": 104
+  },
+  {
+   "id": 65,
+   "name": "Against All Authorities",
+   "region": 5,
+   "bonus": 2,
+   "logo": "pool_aaa",
+   "fullLogo": true,
+   "pool": true,
+   "player": 105
+  },
+  {
+   "id": 66,
+   "name": "Saigon Jokers",
+   "region": 5,
+   "bonus": 2,
+   "logo": "pool_saigon",
+   "fullLogo": true,
+   "pool": true,
+   "player": 106
+  },
+  {
+   "id": 67,
+   "name": "Enemy eSports",
+   "region": 5,
+   "bonus": 2,
+   "logo": "pool_enemy",
+   "fullLogo": true,
+   "pool": true,
+   "player": 107
+  },
+  {
+   "id": 68,
+   "name": "Team Just",
+   "region": 5,
+   "bonus": 2,
+   "logo": "pool_justmsi",
+   "fullLogo": true,
+   "pool": true,
+   "player": 108
   }
  ]
 }

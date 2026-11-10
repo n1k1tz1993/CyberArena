@@ -4,8 +4,10 @@
   "LEC",
   "Континентальная Лига",
   "LPL",
-  "LCK"
+  "LCK",
+  "Пул команд"
  ],
+ "careerPortraits": [],
  "players": [
   {
    "id": 1,
@@ -1104,6 +1106,94 @@
    "region": 4,
    "portrait": "p100",
    "country": "KR",
+   "real": true,
+   "ready": true
+  },
+  {
+   "id": 101,
+   "nickname": "Unforgiven",
+   "skill": "Игрок пула. Играет в ESL Open и в карьерных турнирах.",
+   "power": 48,
+   "region": 5,
+   "portrait": "pool_silhouette",
+   "country": "IL",
+   "real": true,
+   "ready": true
+  },
+  {
+   "id": 102,
+   "nickname": "Shushei",
+   "skill": "Игрок пула. Играет в ESL Open и в карьерных турнирах.",
+   "power": 41,
+   "region": 5,
+   "portrait": "pool_silhouette",
+   "country": "PL",
+   "real": true,
+   "ready": true
+  },
+  {
+   "id": 103,
+   "nickname": "Maloono",
+   "skill": "Игрок пула. Играет в ESL Open и в карьерных турнирах.",
+   "power": 50,
+   "region": 5,
+   "portrait": "pool_silhouette",
+   "country": "FR",
+   "real": true,
+   "ready": true
+  },
+  {
+   "id": 104,
+   "nickname": "Zest",
+   "skill": "Игрок пула. Играет в ESL Open и в карьерных турнирах.",
+   "power": 43,
+   "region": 5,
+   "portrait": "pool_silhouette",
+   "country": "TW",
+   "real": true,
+   "ready": true
+  },
+  {
+   "id": 105,
+   "nickname": "HoSaN",
+   "skill": "Игрок пула. Играет в ESL Open и в карьерных турнирах.",
+   "power": 49,
+   "region": 5,
+   "portrait": "pool_silhouette",
+   "country": "DE",
+   "real": true,
+   "ready": true
+  },
+  {
+   "id": 106,
+   "nickname": "Reaper",
+   "skill": "Игрок пула. Играет в ESL Open и в карьерных турнирах.",
+   "power": 40,
+   "region": 5,
+   "portrait": "pool_silhouette",
+   "country": "VN",
+   "real": true,
+   "ready": true
+  },
+  {
+   "id": 107,
+   "nickname": "Envy",
+   "skill": "Игрок пула. Играет в ESL Open и в карьерных турнирах.",
+   "power": 47,
+   "region": 5,
+   "portrait": "pool_silhouette",
+   "country": "US",
+   "real": true,
+   "ready": true
+  },
+  {
+   "id": 108,
+   "nickname": "Fomko",
+   "skill": "Игрок пула. Играет в ESL Open и в карьерных турнирах.",
+   "power": 42,
+   "region": 5,
+   "portrait": "pool_silhouette",
+   "country": "RU",
    "real": true,
    "ready": true
   }

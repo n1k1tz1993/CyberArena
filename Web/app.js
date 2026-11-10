@@ -4,7 +4,7 @@
 // =====================================================================
 const REG = DATA.regions;
 const REG_SHORT = ['LCS', 'LEC', 'КЛ', 'LPL', 'LCK'];
-const RCOL = ['#FF6B6B', '#FFB84D', '#4CD97B', '#4DB8FF', '#B57BFF'];
+const RCOL = ['#FF6B6B', '#FFB84D', '#4CD97B', '#4DB8FF', '#B57BFF', '#8A93AD'];
 const COL = { p1: '#FF5468', p2: '#4D8DFF', gold: '#FFC940', accent: '#2EE6D6', dim: '#8A93AD', bad: '#FF5468', good: '#4CD97B', panel2: '#252E4A', text: '#EEF1FA' };
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -38,6 +38,22 @@ applyOV();
 const inRegion = r => DATA.players.filter(p => p.region === r);
 const teamsIn = r => DATA.teams.filter(t => t.region === r);
 const power = (p, t) => p.power + (t ? t.bonus : 0);
+
+// ================= КАРЬЕРА =================
+// Персонаж создаётся один раз. Старт — сила 50, каждая победа в отборочном турнире +5 до 65.
+// Ровно на 65 игрок становится доступен для драфта и приглашений; дальше сила не меняется.
+const CAREER_ID = 500, CKEY = 'ca_career_v1', CAREER_START = 50, CAREER_STEP = 5, CAREER_UNLOCK = 65;
+let CAR = store.get(CKEY, null);
+if (CAR && (typeof CAR.power !== 'number' || !CAR.nick || !CAR.country || !CAR.portrait)) CAR = null;
+function syncCareer() {
+  if (!CAR) { PL.delete(CAREER_ID); return; }
+  PL.set(CAREER_ID, { id: CAREER_ID, nickname: CAR.nick, skill: 'Карьера. Путь от отборочных до драфта.', power: CAR.power, region: 5, portrait: CAR.portrait, country: CAR.country, career: true });
+}
+function saveCareer() { store.set(CKEY, CAR); syncCareer(); }
+const careerReady = () => !!CAR && CAR.power >= CAREER_UNLOCK;
+const careerList = () => careerReady() ? [PL.get(CAREER_ID)] : [];
+const FLAG_LIST = Object.keys(IMG).filter(k => k.startsWith('f_')).map(k => k.slice(2)).sort();
+syncCareer();
 
 // ================= БОЙ =================
 const MAXHP = 100, BLOCK = 0.4, CRIT = 0.10, CRITM = 1.7, TICK = 1;
@@ -103,7 +119,7 @@ const S = {
   draftOrder: r => teamsIn(r),
   currentPicker(r) { return teamsIn(r).find(t => !S.playerOf(t.id)) || null; },
   // свободные игроки любого региона (подписанный игрок уже не может уйти в другую команду этого сезона)
-  available(r) { return DATA.players.filter(p => S.teamIdOf(p.id) < 0).sort((a, b) => b.power - a.power); },
+  available(r) { return [...DATA.players.filter(p => p.region < 5), ...careerList()].filter(p => S.teamIdOf(p.id) < 0).sort((a, b) => b.power - a.power); },
   pickNumber(r) { return teamsIn(r).filter(t => S.playerOf(t.id)).length + 1; },
   pick(r, pid) {
     if (D.regionState[r] !== RS.Draft) return false;
@@ -406,6 +422,7 @@ function showMenu() {
     <button class="btn b2" ${on(showSeason)}>СЕЗОН ЛИГИ<small>Сезон ${D.number} · ${esc(S.phaseName())}</small></button>
     <button class="btn bpro" ${on(showProHome)}><span class="mi"><img src="${img('esl')}" alt="">ESL PRO LEAGUE</span><small>${esc(tStatus('pro'))}</small></button>
     <button class="btn bone" ${on(showOneHome)}><span class="mi"><img src="${img('esl')}" alt="">ESL ONE</span><small>${esc(tStatus('one'))}</small></button>
+    <button class="btn bcar" ${on(showCareer)}><span class="mi">КАРЬЕРА</span><small>${esc(careerStatus())}</small></button>
     <div class="row2"><button class="btn bhall" ${on(() => showHall(0))}>ЗАЛ СЛАВЫ</button><button class="btn" ${on(() => showSettings(0))}>НАСТРОЙКИ</button></div>
     ${last}
     <div class="sync" id="sync">${syncText()}</div>
@@ -418,9 +435,9 @@ function showSelect() {
   const prev = app.querySelector('.scroll.sel');
   const keep = prev ? prev.scrollTop : 0;
   let html = topbar('Свободный бой', showMenu) + '<div class="scroll sel">';
-  for (let r = 0; r < 5; r++) {
+  for (let r = 0; r < 6; r++) {
     html += `<div class="reg-h"><span class="bar" style="background:${RCOL[r]}"></span>${regionLogo(r)}<b style="color:${RCOL[r]}">${esc(REG[r].toUpperCase())}</b></div><div class="pgrid">`;
-    for (const p of inRegion(r)) {
+    for (const p of (r === 5 ? [...inRegion(5), ...careerList()] : inRegion(r))) {
       const a = p.id === SEL.a, b = p.id === SEL.b;
       const t = a ? TM.get(SEL.ta) : b ? TM.get(SEL.tb) : null;
       html += `<div class="pc" ${on(() => onPick(p.id))}>${portrait(p, t, a ? COL.p1 : b ? COL.p2 : COL.panel2)}${a || b ? `<span class="num">${a ? 1 : 2}</span>` : ''}<div class="nick ell">${esc(p.nickname)}</div></div>`;
@@ -586,6 +603,51 @@ function showResult(m, a, ta, b, tb, s1, s2, title, onFinished, onBack, rematch)
 }
 
 // ================= СЕЗОН =================
+// ================= КАРЬЕРА: экраны =================
+const careerStatus = () => !CAR ? 'создать игрока' : careerReady() ? 'доступен для драфта' : `сила ${CAR.power} из ${CAREER_UNLOCK}`;
+const careerPortraitOptions = () => DATA.careerPortraits && DATA.careerPortraits.length ? DATA.careerPortraits : ['pool_silhouette'];
+function showCareer() { if (!CAR) showCareerCreate(); else showCareerProgress(); }
+function showCareerCreate(st) {
+  st = st || { nick: '', country: '', portrait: careerPortraitOptions()[0] };
+  const ok = st.nick.trim() && st.country;
+  const h = topbar('Карьера · новый игрок', showMenu) + `<div class="scroll career">
+    <div class="dim" style="font-size:13px">Старт с силой ${CAREER_START}. Каждая победа в отборочном турнире даёт +${CAREER_STEP}, пока сила не станет ${CAREER_UNLOCK}.</div>
+    ${sec('Никнейм')}<input class="cinp" id="cnick" maxlength="16" placeholder="Введи никнейм" value="${esc(st.nick)}">
+    ${sec('Флаг')}<div class="fgrid">${FLAG_LIST.map(c => `<div class="fc ${st.country === c ? 'on' : ''}" ${on(() => { st.country = c; showCareerCreate(st); })}>${img('f_' + c) ? `<img src="${img('f_' + c)}" alt="${c}">` : c}</div>`).join('')}</div>
+    ${sec('Картинка')}<div class="pgrid">${careerPortraitOptions().map(k => `<div class="pc ${st.portrait === k ? 'on' : ''}" ${on(() => { st.portrait = k; showCareerCreate(st); })}>${portrait({ portrait: k, nickname: '', country: st.country }, null, st.portrait === k ? COL.gold : COL.panel2)}</div>`).join('')}</div>
+  </div><div class="bottom"><button class="btn main" style="${ok ? '' : 'opacity:.4'}" ${on(() => {
+      if (!st.nick.trim() || !st.country) return;
+      CAR = { nick: st.nick.trim(), country: st.country, portrait: st.portrait, power: CAREER_START, wins: 0, games: 0 };
+      saveCareer(); showCareerProgress();
+    })}>СОЗДАТЬ И ВЫЙТИ В ЛИГУ</button></div>`;
+  screen(h);
+  const inp = app.querySelector('#cnick');
+  if (inp) inp.addEventListener('input', () => { st.nick = inp.value; });
+}
+function showCareerProgress() {
+  const ready = careerReady();
+  const pct = clamp((CAR.power - CAREER_START) / (CAREER_UNLOCK - CAREER_START), 0, 1) * 100;
+  const me = PL.get(CAREER_ID);
+  const h = topbar('Карьера', showMenu) + `<div class="scroll career">
+    <div class="car-hero">${portrait(me, null, ready ? COL.gold : COL.p2)}<div class="car-inf"><b class="ell">${esc(CAR.nick)}</b>
+      <span class="dim">Сила <b class="acc">${CAR.power}</b> из ${CAREER_UNLOCK}</span>
+      <div class="bar-track"><i style="width:${pct}%"></i></div>
+      <span class="dim" style="font-size:12px">Побед: ${CAR.wins} · игр: ${CAR.games}</span></div></div>
+    ${ready
+      ? `<div class="car-done"><b>Игрок доступен для драфта.</b><br>Его выбирают в драфте сезона, на ESL Pro League и на ESL One. Сила зафиксирована на ${CAR.power} и больше не меняется.</div>`
+      : `<div class="dim" style="font-size:13px">Отборочная лига: 8 команд пула силой примерно 40–55. Игрок выступает без команды.</div>`}
+  </div><div class="bottom">${ready ? '' : `<button class="btn main" ${on(playCareer)}>ИГРАТЬ ОТБОРОЧНЫЙ ТУРНИР</button>`}</div>`;
+  screen(h);
+}
+function playCareer() {
+  const pt = DATA.teams.filter(t => t.pool);
+  const t = pt[rnd(pt.length)], o = PL.get(t.player);
+  startMatch(PL.get(CAREER_ID), null, o, t, 'Карьера · отборочный турнир', (s1, s2) => {
+    CAR.games++;
+    if (s1 > s2) { CAR.wins++; CAR.power = Math.min(CAREER_UNLOCK, CAR.power + CAREER_STEP); }
+    saveCareer(); showCareerProgress();
+  }, showCareerProgress, false);
+}
 let seasonResetArmed = false;
 function showSeason() {
   seasonResetArmed = false;
@@ -701,6 +763,8 @@ function showDraft(r) {
     for (const p of list) h += `<div class="dc" ${on(() => { S.pick(r, p.id); showDraft(r); })}>${portrait(p, null)}<div class="nick ell">${esc(p.nickname)}</div><div class="sk">${esc(p.skill)}</div></div>`;
     h += '</div>';
   }
+  const cav = av.filter(p => p.career);
+  if (cav.length) { h += `<div class="reg-h"><span class="bar" style="background:${RCOL[5]}"></span><b style="color:${RCOL[5]}">КАРЬЕРА</b><span class="dim" style="font-size:12px">свободно ${cav.length}</span></div><div class="dgrid">`; for (const p of cav) h += `<div class="dc" ${on(() => { S.pick(r, p.id); showDraft(r); })}>${portrait(p, null)}<div class="nick ell">${esc(p.nickname)}</div><div class="sk">${esc(p.skill)}</div></div>`; h += '</div>'; }
   h += sec('Порядок выбора');
   order.forEach((t, k) => {
     const p = S.playerOf(t.id), now = picker && t.id === picker.id;
@@ -977,6 +1041,10 @@ function showProDraft() {
       h += '</div>';
     }
   }
+  if (!done) {
+    const cav = careerList().filter(p => !taken.has(p.id));
+    if (cav.length) { h += `<div class="reg-h"><span class="bar" style="background:${RCOL[5]}"></span><b style="color:${RCOL[5]}">КАРЬЕРА</b></div><div class="dgrid">`; for (const p of cav) h += `<div class="dc" ${on(() => { d.picks[picker] = p.id; saveTour('pro'); showProDraft(); })}>${portrait(p, null)}<div class="nick ell">${esc(p.nickname)}</div><div class="sk">${esc(p.skill)}</div></div>`; h += '</div>'; }
+  }
   h += sec(`Составы · ${n} из 24`);
   d.teams.forEach((id, k) => {
     const t = TM.get(id), p = d.picks[id] ? PL.get(d.picks[id]) : null, now = id === picker;
@@ -1010,12 +1078,20 @@ function showPick(kind, size, sel) {
     }
     h += '</div>';
   }
+  if (kind === 'pro') {
+    h += `<div class="reg-h"><span class="bar" style="background:${RCOL[5]}"></span><b style="color:${RCOL[5]}">ПУЛ КОМАНД</b></div><div class="tgrid">`;
+    for (const t of DATA.teams.filter(x => x.pool)) { const s = sel.includes(t.id); h += `<div class="tc ${s ? 'on' : ''} ${!s && sel.length >= size ? 'off' : ''}" ${on(() => toggle(t.id))}>${logo(t)}<span>${esc(t.name)}</span></div>`; }
+    h += '</div>';
+  } else if (careerList().length) {
+    const cp = careerList()[0], s = sel.includes(CAREER_ID);
+    h += `<div class="reg-h"><span class="bar" style="background:${RCOL[5]}"></span><b style="color:${RCOL[5]}">КАРЬЕРА</b></div><div class="pgrid"><div class="pc ${!s && sel.length >= size ? 'off' : ''}" ${on(() => toggle(CAREER_ID))}>${portrait(cp, null, s ? COL.gold : COL.panel2)}${s ? '<span class="num">✓</span>' : ''}<div class="nick ell">${esc(cp.nickname)}</div></div></div>`;
+  }
   const full = sel.length === size;
-  const pool = kind === 'pro' ? DATA.teams.map(t => t.id) : DATA.players.map(p => p.id);
+  const pool = kind === 'pro' ? DATA.teams.map(t => t.id) : [...DATA.players.filter(p => p.region < 5), ...careerList()].map(p => p.id);
   h += `</div><div class="bottom"><div class="cup-count"><b>${sel.length}</b> из ${size} выбрано</div>
     <div class="row2"><button class="btn" ${on(() => showPick(kind, size, []))}>Очистить</button>
     <button class="btn" ${full ? 'disabled' : on(() => { const rest = shuffle(pool.filter(id => !sel.includes(id))); showPick(kind, size, sel.concat(rest.slice(0, size - sel.length))); })}>Добавить случайно</button></div>
-    <button class="btn main ${kind === 'pro' ? 'pro-btn' : ''}" ${full ? on(() => { if (kind === 'pro') { PRO.draft = { teams: sel.slice(), picks: {} }; saveTour('pro'); showProDraft(); } else { tourNew(kind, size, sel); showTour(kind); } }) : 'disabled'}>${full ? (kind === 'pro' ? 'К ДРАФТУ ИГРОКОВ' : 'НАЧАТЬ ТУРНИР') : `Выбери ещё ${size - sel.length}`}</button></div>`;
+    <button class="btn main ${kind === 'pro' ? 'pro-btn' : ''}" ${full ? on(() => { if (kind === 'pro') { PRO.draft = { teams: sel.slice(), picks: {} }; sel.forEach(id => { const t = TM.get(id); if (t.pool) PRO.draft.picks[id] = t.player; }); saveTour('pro'); showProDraft(); } else { tourNew(kind, size, sel); showTour(kind); } }) : 'disabled'}>${full ? (kind === 'pro' ? 'К ДРАФТУ ИГРОКОВ' : 'НАЧАТЬ ТУРНИР') : `Выбери ещё ${size - sel.length}`}</button></div>`;
   screen(h);
   app.querySelector('.scroll.cpick').scrollTop = keep;
 }
