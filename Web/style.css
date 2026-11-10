@@ -356,3 +356,80 @@ textarea:focus { outline: 2px solid var(--accent); }
 .ptlogo .logo { width: 84%; height: 84%; }
 .ptlogo img { width: 100%; height: 100%; object-fit: contain; }
 .car-hero .logo { width: 120px; height: 120px; flex: 0 0 120px; }
+
+/* ---- карьера: экран турнира (игрок, соперник, сетка) и создание игрока ---- */
+.cbox { background: var(--panel); border-radius: 14px; padding: 10px 12px; margin: 10px 0; min-width: 0; }
+.cbox-h { font: 13px var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+.cstage { display: flex; flex-direction: column; gap: 2px; margin: 8px 0 2px; font-size: 14px; }
+.cstat { font-size: 12px; }
+.cnote { font-size: 13px; line-height: 1.4; margin: 4px 0; }
+.car-hero .pt.sm { width: 84px; height: 84px; flex: 0 0 84px; }
+.opp { display: flex; gap: 10px; align-items: center; min-width: 0; }
+.opp .logo { width: 48px; flex: 0 0 48px; }
+.cvs { display: flex; align-items: flex-start; gap: 8px; margin: 6px 0; min-width: 0; }
+.cvs .mside { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; font-size: 13px; }
+.cvs .mside .logo { width: 72px; flex: 0 0 72px; }
+.cvs .mside .pt { width: 96px; height: 96px; }
+.cvs .mside b { max-width: 100%; }
+.cvs-x { font: 20px var(--display); color: var(--accent); padding-top: 26px; }
+.gh { font-size: 12px; color: var(--dim); margin: 6px 0 4px; }
+.gl { display: flex; flex-direction: column; gap: 3px; }
+.gr { display: flex; align-items: center; gap: 6px; font-size: 13px; min-width: 0; padding: 4px 6px; border-radius: 8px; background: rgba(255,255,255,.03); }
+.gr.now { background: rgba(255,201,64,.10); }
+.gr .n { width: 16px; text-align: center; color: var(--dim); font-weight: 700; flex: 0 0 16px; }
+.gr .logo { width: 20px; flex: 0 0 20px; }
+.gr .ell { flex: 1; min-width: 0; }
+.gr .pk { color: var(--accent); font-weight: 700; font-size: 12px; flex: 0 0 auto; }
+.bk { margin-top: 8px; }
+.bk-cols { display: flex; gap: 8px; align-items: stretch; min-width: 0; }
+.bk-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.bk-h { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: .05em; text-align: center; }
+.bk-fin { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.bk-m { background: #1B2238; border-radius: 10px; border: 1px solid transparent; padding: 4px 6px; min-width: 0; }
+.bk-m.mine { border-color: rgba(255, 201, 64, .35); }
+.bk-m.now { border-color: #FFC940; box-shadow: 0 0 0 1px #FFC940 inset; }
+.bk-r { display: flex; align-items: center; gap: 5px; font-size: 12px; min-width: 0; height: 24px; }
+.bk-r .logo { width: 18px; flex: 0 0 18px; }
+.bk-r .ell { flex: 1; min-width: 0; }
+.bk-r b { color: var(--accent); }
+.bk-s { font-weight: 700; color: var(--accent); min-width: 14px; text-align: right; flex: 0 0 auto; }
+.pbig { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 8px 0 4px; }
+.pbig-img { flex: 0 0 auto; }
+.pbig-img .pt { width: 190px; height: 190px; }
+.arr { width: 44px; height: 44px; flex: 0 0 44px; border-radius: 50%; border: 0; background: var(--panel); color: var(--accent); font-size: 28px; line-height: 1; cursor: pointer; }
+.cta { min-height: 76px; resize: vertical; font-size: 16px; line-height: 1.35; font-family: inherit; }
+
+/* ---- карьера v3: карточка игрока, ранги, баннер про-игрока, ладдер, флаги в сетках ---- */
+.pcard { display: flex; gap: 12px; align-items: center; margin: 6px 0 10px; padding: 10px 12px; border-radius: 16px; border: 1px solid #2E3858; background: linear-gradient(135deg, #1B2238, #131A2E); min-width: 0; }
+.pcard.compact { margin: 0 0 12px; }
+.pc-av { flex: 0 0 auto; }
+.pc-av .pt { width: 68px; height: 68px; flex: 0 0 68px; }
+.pcard.compact .pc-av .pt { width: 60px; height: 60px; flex: 0 0 60px; }
+.pc-info { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.pc-nick { font-size: 17px; }
+.pc-score { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.pc-pts { font: 22px var(--display); color: #FFC940; text-shadow: 0 0 10px rgba(255, 201, 64, .35); }
+.pc-rank { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.rk { width: 24px; height: 24px; flex: 0 0 24px; filter: drop-shadow(0 0 4px var(--rc)); }
+.pc-team { display: flex; align-items: center; gap: 6px; font-size: 12px; min-width: 0; }
+.pc-team .logo { width: 22px; height: 22px; flex: 0 0 22px; }
+.pc-team .ell { min-width: 0; }
+.pro-banner { margin: 8px 0; padding: 14px; border-radius: 16px; border: 1px solid #FFC940; background: radial-gradient(circle at 92% 0%, rgba(255, 201, 64, .35), transparent 60%), linear-gradient(135deg, #2A1F4D, #101A33); box-shadow: 0 0 22px rgba(255, 201, 64, .22); }
+.pro-banner .pb-k { font: 12px var(--display); letter-spacing: .25em; color: #FFC940; }
+.pro-banner b { display: block; font-size: 18px; margin: 4px 0 6px; }
+.pro-banner span { display: block; font-size: 13px; line-height: 1.45; color: #D7DCEB; }
+.fl { display: inline-flex; flex: 0 0 auto; }
+.fl img { width: 18px; height: 12px; object-fit: cover; border-radius: 2px; }
+.bk-r .fl img { width: 14px; height: 10px; }
+.bk-r .logo { display: none; }
+.bk-r .ell { flex: 1; min-width: 0; }
+.bad { color: #FF6B6B; }
+.lad { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 8px 0; }
+.lad-die { font: 52px var(--display); width: 96px; height: 96px; border-radius: 18px; background: #1B2238; border: 2px solid #FFC940; color: #FFC940; display: flex; align-items: center; justify-content: center; }
+.lad-opp { display: flex; gap: 12px; align-items: center; width: 100%; min-width: 0; }
+.lad-opp .pt { width: 72px; height: 72px; flex: 0 0 72px; }
+.lad-opp .car-inf { min-width: 0; flex: 1; }
+
+.opp { margin: 4px 0; }
+.opp .pt { width: 84px; height: 84px; flex: 0 0 84px; }
+.mside .pt { width: 96px; height: 96px; }

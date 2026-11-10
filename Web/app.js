@@ -40,23 +40,54 @@ const teamsIn = r => DATA.teams.filter(t => t.region === r);
 const power = (p, t) => p.power + (t ? t.bonus : 0);
 
 // ================= КАРЬЕРА =================
-// Персонаж создаётся один раз. Старт — сила 50, каждая победа в отборочном турнире +5 до 65.
-// Ровно на 65 игрок становится доступен для драфта и приглашений; дальше сила не меняется.
+// Персонаж создаётся один раз. Старт — сила 30, каждая победа в карьерном турнире +5, пока сила не станет 65.
+// На 65 игрок становится про-игроком: доступен в драфте сезона, ESL Pro League и ESL One, открывается DreamHack.
+// Сила дальше растёт только на DreamHack (+5), а победа на чемпионате мира сезона ставит не ниже 70.
+// Силу соперников и самого игрока нигде не показываем. Очки — отдельный счёт: ESL One, титулы, ЧМ, DreamHack, ладдер.
 let CAREER_ID = 500;
-const RKEY = 'ca_career_old_v1', CKEY = 'ca_career_v1', CAREER_START = 50, CAREER_STEP = 5, CAREER_UNLOCK = 65;
+const RKEY = 'ca_career_old_v1', CKEY = 'ca_career_v1';
+const CAREER_START = 30, CAREER_STEP = 5, CAREER_UNLOCK = 65, CAREER_WORLDS_POWER = 70, GUEST_BASE = 1000;
+const CAREER_KINDS = new Set(['career', 'free', 'dream']);
 let CAR = store.get(CKEY, null);
 let RET = store.get(RKEY, null) || [];
 if (CAR && (typeof CAR.power !== 'number' || !CAR.nick || !CAR.country || !CAR.portrait)) CAR = null;
 if (CAR && CAR.id) CAREER_ID = CAR.id;
-if (CAR) { CAR.stage = CAR.stage || 0; CAR.tour = CAR.tour || null; CAR.tours = CAR.tours || 0; CAR.wins = CAR.wins || 0; CAR.games = CAR.games || 0; }
+if (CAR) {
+  CAR.stage = CAR.stage || 0; CAR.tours = CAR.tours || 0; CAR.wins = CAR.wins || 0; CAR.games = CAR.games || 0;
+  CAR.score = CAR.score || 0; CAR.dreamWins = CAR.dreamWins || 0;
+  if (CAR.lastTeam === undefined) CAR.lastTeam = -1;
+  // старые турниры (с командами пула) не продолжаем; сам игрок и его портрет сохраняются
+  if (!CAR.v3 || !CAR.tour || !CAR.tour.guests) CAR.tour = null;
+  CAR.v3 = true;
+}
 function syncCareer() {
   for (const o of RET) PL.set(o.id, o);
   if (!CAR) return;
-  PL.set(CAREER_ID, { id: CAREER_ID, nickname: CAR.nick, skill: 'Второе дыхание. Один раз в турнир выигрывает раунд из почти проигранной позиции.', power: CAR.power, region: 5, portrait: CAR.portrait, country: CAR.country, career: true });
+  PL.set(CAREER_ID, { id: CAREER_ID, nickname: CAR.nick, skill: CAR.skill || 'Второе дыхание. Один раз в турнир выигрывает раунд из почти проигранной позиции.', power: CAR.power, region: 5, portrait: CAR.portrait, country: CAR.country, career: true });
 }
 function saveCareer() { store.set(CKEY, CAR); syncCareer(); }
 const careerReady = () => !!CAR && CAR.power >= CAREER_UNLOCK;
 const careerList = () => careerReady() ? [PL.get(CAREER_ID)] : [];
+// очки: счёт не уходит ниже нуля
+function addScore(n) { if (!CAR) return; CAR.score = Math.max(0, (CAR.score || 0) + n); saveCareer(); }
+// ранги по счёту: бронза до 500, серебро 500–1499, платина 1500–1999, даймонд 2000–2500, мастер от 2501
+const CRANKS = [
+  { min: 0, name: 'Бронза', c: '#C98B52' },
+  { min: 500, name: 'Серебро', c: '#C9D2E0' },
+  { min: 1500, name: 'Платина', c: '#5ED8D0' },
+  { min: 2000, name: 'Даймонд', c: '#6FA8FF' },
+  { min: 2501, name: 'Мастер', c: '#D08CFF' }];
+const rankOf = s => { let r = CRANKS[0]; for (const x of CRANKS) if (s >= x.min) r = x; return r; };
+// значок ранга — свой силуэт на каждый ранг
+function rankIcon(r) {
+  const shapes = [
+    '<path d="M12 2 L21 6 V12 C21 17 17 21 12 22 C7 21 3 17 3 12 V6 Z"/>',
+    '<path d="M12 2 L20.5 7 V17 L12 22 L3.5 17 V7 Z"/>',
+    '<path d="M12 2 L22 12 L12 22 L2 12 Z"/>',
+    '<path d="M6 3 H18 L22 9 L12 21 L2 9 Z"/>',
+    '<path d="M12 1.5 L14.9 8.6 L22.5 9.2 L16.7 14.2 L18.5 21.6 L12 17.7 L5.5 21.6 L7.3 14.2 L1.5 9.2 L9.1 8.6 Z"/>'];
+  return `<svg class="rk" viewBox="0 0 24 24" aria-hidden="true" style="--rc:${r.c}"><g fill="${r.c}" stroke="#0b1020" stroke-width=".8">${shapes[CRANKS.indexOf(r)]}</g></svg>`;
+}
 const FLAG_LIST = Object.keys(IMG).filter(k => k.startsWith('f_')).map(k => k.slice(2)).sort();
 syncCareer();
 
@@ -121,8 +152,8 @@ const S = {
   playerOf(tid) { const i = D.draftTeams.indexOf(tid); return i >= 0 ? PL.get(D.draftPlayers[i]) : null; },
   teamIdOf(pid) { const i = D.draftPlayers.indexOf(pid); return i >= 0 ? D.draftTeams[i] : -1; },
   startRegion(r) { if (D.phase !== PH.Regions || D.regionState[r] !== RS.NotStarted) return; D.regionState[r] = RS.Draft; saveSeason(); },
-  draftOrder: r => teamsIn(r),
-  currentPicker(r) { return teamsIn(r).find(t => !S.playerOf(t.id)) || null; },
+  draftOrder: r => teamsIn(r).slice().sort((a, b) => b.bonus - a.bonus || a.id - b.id),
+  currentPicker(r) { return S.draftOrder(r).find(t => !S.playerOf(t.id)) || null; },
   // свободные игроки любого региона (подписанный игрок уже не может уйти в другую команду этого сезона)
   available(r) { return [...DATA.players.filter(p => p.region < 5), ...careerList()].filter(p => S.teamIdOf(p.id) < 0).sort((a, b) => b.power - a.power); },
   pickNumber(r) { return teamsIn(r).filter(t => S.playerOf(t.id)).length + 1; },
@@ -130,7 +161,7 @@ const S = {
     if (D.regionState[r] !== RS.Draft) return false;
     const team = S.currentPicker(r), p = PL.get(pid);
     if (!team || !p || S.teamIdOf(pid) >= 0) return false;
-    D.draftPlayers.push(pid); D.draftTeams.push(team.id);
+    D.draftPlayers.push(pid); D.draftTeams.push(team.id); careerTeamPick(pid, team.id);
     if (!S.currentPicker(r)) { D.regionState[r] = RS.League; D.matches.push(...roundRobin(teamsIn(r).map(t => t.id), ST.League, r, false)); }
     saveSeason(); return true;
   },
@@ -367,6 +398,7 @@ function advanceWorlds() {
       D.champion = win(fm[fm.length - 1]);
       const p = S.playerOf(D.champion);
       D.championPlayer = p ? p.nickname : '';
+      if (p && p.id === CAREER_ID) careerWorldsWin();
       D.phase = PH.Finished;
       D.historyTeams.push(D.champion); D.historyPlayers.push(D.championPlayer); D.historyPids.push(p ? p.id : -1);
       break;
@@ -422,6 +454,7 @@ function showMenu() {
     if (t) last = `<div class="last">Последний чемпион мира: <b class="gold">${esc(t.name)}</b>${who ? ` (${esc(who)})` : ''}</div>`;
   }
   screen(`<div class="menu">
+    ${CAR ? careerCard(true) : ''}
     <div class="brand"><h2>КИБЕР<br>АРЕНА</h2><p>симулятор киберспортивных турниров</p></div>
     <button class="btn b1" ${on(showSelect)}>СВОБОДНЫЙ БОЙ</button>
     <button class="btn b2" ${on(showSeason)}>СЕЗОН ЛИГИ<small>Сезон ${D.number} · ${esc(S.phaseName())}</small></button>
@@ -613,157 +646,312 @@ function showResult(m, a, ta, b, tb, s1, s2, title, onFinished, onBack, rematch)
 }
 
 // ================= СЕЗОН =================
-// ================= КАРЬЕРА: экраны =================
-const careerStatus = () => !CAR ? 'создать игрока' : careerReady() ? 'доступен для драфта' : `сила ${CAR.power} из ${CAREER_UNLOCK}`;
+// ================= КАРЬЕРА: экраны и турниры =================
+const careerStatus = () => !CAR ? 'создать игрока' : `${rankOf(CAR.score).name} · ${CAR.score} очков${careerReady() ? ' · про-игрок' : ''}`;
 const nextCareerId = () => Math.max(499, ...RET.map(o => o.id)) + 1;
+const careerPortraitOptions = () => DATA.careerPortraits && DATA.careerPortraits.length ? DATA.careerPortraits : ['pool_silhouette'];
+const careerNickPool = () => DATA.careerNicks && DATA.careerNicks.length ? DATA.careerNicks : ['Player'];
+const pickOne = a => a[rnd(a.length)];
+const FORMAT_NAME = { 8: 'Single Elimination', 12: 'две группы по 6', 16: 'четыре группы по 4', 32: 'DreamHack · пары, группы, плей-офф' };
+const CAREER_SIZES = [8, 12, 16];
+const tourTitle = t => t.kind === 'dream' ? 'DreamHack' : t.kind === 'free' ? `Турнир на ${t.size}` : `Карьерный турнир · ${t.size}`;
+const cMini = (t, id) => {
+  if (id === CAREER_ID) return `<b class="acc ell">Ты · ${esc(CAR.nick)}</b>`;
+  const p = tPlayer(t, id);
+  return `<span class="fl">${flagImg(p)}</span><span class="ell">${esc(p.nickname)}</span>`;
+};
+
+function careerCard(compact) {
+  const me = PL.get(CAREER_ID), r = rankOf(CAR.score);
+  const lt = CAR.lastTeam >= 0 ? TM.get(CAR.lastTeam) : null;
+  return `<div class="pcard ${compact ? 'compact' : ''}">
+    <div class="pc-av">${portrait(me, null, careerReady() ? COL.gold : COL.p2)}</div>
+    <div class="pc-info">
+      <b class="ell pc-nick">${esc(CAR.nick)}</b>
+      <div class="pc-score">${rankIcon(r)}<span class="pc-pts">${CAR.score}</span><span class="pc-rank" style="color:${r.c}">${r.name}</span></div>
+      <div class="pc-team">${lt ? `${logo(lt)}<span class="ell">${esc(lt.name)}</span>` : '<span class="dim">без команды</span>'}</div>
+    </div></div>`;
+}
+
+// ---------- создание игрока ----------
 function resetCareer() {
   const old = PL.get(CAREER_ID);
   if (CAR && old) { RET.push({ ...old }); store.set(RKEY, RET); }
   CAR = null; store.set(CKEY, null); syncCareer();
   showCareerCreate();
 }
-const careerPortraitOptions = () => DATA.careerPortraits && DATA.careerPortraits.length ? DATA.careerPortraits : ['pool_silhouette'];
-function showCareer() { if (!CAR) showCareerCreate(); else showCareerProgress(); }
 function showCareerCreate(st) {
-  st = st || { nick: '', country: '', portrait: careerPortraitOptions()[0] };
-  const ok = st.nick.trim() && st.country;
+  const opts = careerPortraitOptions();
+  st = st || { nick: '', skill: '', country: '', pi: 0 };
+  st.pi = ((st.pi % opts.length) + opts.length) % opts.length;
+  const pk = opts[st.pi];
+  const valid = () => !!(st.nick.trim() && st.skill.trim() && st.country);
   const h = topbar('Карьера · новый игрок', showMenu) + `<div class="scroll career">
-    <div class="dim" style="font-size:13px">Старт с силой ${CAREER_START}. Каждая победа в отборочном турнире даёт +${CAREER_STEP}, пока сила не станет ${CAREER_UNLOCK}.</div>
-    ${sec('Никнейм')}<input class="cinp" id="cnick" maxlength="16" placeholder="Введи никнейм" value="${esc(st.nick)}">
+    <div class="dim" style="font-size:13px">Старт с силой ${CAREER_START}. Каждая победа в турнире даёт шаг к про-уровню (${CAREER_UNLOCK}).</div>
+    ${sec('Ник')}<input class="cinp" id="cnick" maxlength="16" placeholder="Введи ник" value="${esc(st.nick)}">
+    ${sec('Придумай способность')}<textarea class="cinp cta" id="cskill" maxlength="160" placeholder="Название. Что делает способность">${esc(st.skill)}</textarea>
+    ${sec('Портрет')}<div class="pbig">
+      <button class="arr" aria-label="Предыдущий" ${on(() => { st.pi--; showCareerCreate(st); })}>‹</button>
+      <div class="pbig-img">${portrait({ portrait: pk, nickname: st.nick, country: st.country }, null, COL.gold)}</div>
+      <button class="arr" aria-label="Следующий" ${on(() => { st.pi++; showCareerCreate(st); })}>›</button></div>
     ${sec('Флаг')}<div class="fgrid">${FLAG_LIST.map(c => `<div class="fc ${st.country === c ? 'on' : ''}" ${on(() => { st.country = c; showCareerCreate(st); })}>${img('f_' + c) ? `<img src="${img('f_' + c)}" alt="${c}">` : c}</div>`).join('')}</div>
-    ${sec('Картинка')}<div class="pgrid">${careerPortraitOptions().map(k => `<div class="pc ${st.portrait === k ? 'on' : ''}" ${on(() => { st.portrait = k; showCareerCreate(st); })}>${portrait({ portrait: k, nickname: '', country: st.country }, null, st.portrait === k ? COL.gold : COL.panel2)}</div>`).join('')}</div>
-  </div><div class="bottom"><button class="btn main" style="${ok ? '' : 'opacity:.4'}" ${on(() => {
-      if (!st.nick.trim() || !st.country) return;
-      CAR = { nick: st.nick.trim(), country: st.country, portrait: st.portrait, power: CAREER_START, wins: 0, games: 0, tours: 0, stage: 0, tour: null, id: nextCareerId() }; CAREER_ID = CAR.id;
-      saveCareer(); showCareerProgress();
+  </div><div class="bottom"><button class="btn main" id="cgo" style="${valid() ? '' : 'opacity:.4'}" ${on(() => {
+      if (!valid()) return;
+      CAR = { nick: st.nick.trim(), skill: st.skill.trim(), country: st.country, portrait: pk, power: CAREER_START, score: 0, wins: 0, games: 0, tours: 0, dreamWins: 0, stage: 0, tour: null, lastTeam: -1, v3: true, id: nextCareerId() };
+      CAREER_ID = CAR.id;
+      saveCareer(); showCareer();
     })}>СОЗДАТЬ И ВЫЙТИ В ЛИГУ</button></div>`;
   screen(h);
-  const inp = app.querySelector('#cnick');
-  if (inp) inp.addEventListener('input', () => { st.nick = inp.value; });
+  const go = app.querySelector('#cgo');
+  const paint = () => { if (go) go.style.opacity = valid() ? '' : '.4'; };
+  const inp = app.querySelector('#cnick'), sk = app.querySelector('#cskill');
+  if (inp) inp.addEventListener('input', () => { st.nick = inp.value; paint(); });
+  if (sk) sk.addEventListener('input', () => { st.skill = sk.value; paint(); });
 }
-// Таблица текущего турнира: группы и лига — таблица, плей-офф — сетка результатов. Никнеймы игроков пула не показываем.
-function careerTableHtml(t) {
-  if (!t) return '<div class="dim" style="font-size:13px">Турнир ещё не начат. Участники появятся после нажатия «Играть турнир».</div>';
-  const nameOf = id => id === CAREER_ID ? `<span class="nm"><b class="acc">Ты · ${esc(CAR.nick)}</b></span>` : `${logo(TM.get(id))}<span class="nm ell">${esc(TM.get(id).name)}</span>`;
-  let h = '';
-  const groups = [...new Set(t.matches.filter(m => m.phase === 'grp').map(m => m.group))];
-  for (const g of groups) {
-    const lbl = t.matches.find(m => m.phase === 'grp' && m.group === g).label;
-    h += sec(lbl);
-    standingsOf(tGroupMatches(t, g)).forEach((r, i) => {
-      const q = i < (t.stage === 2 ? 4 : 2);
-      h += `<div class="or ${q ? 'now' : ''}"><span class="n">${i + 1}</span>${nameOf(r.team)}<span class="pk">${r.wins}-${r.losses} · ${r.mw}:${r.ml}</span></div>`;
-    });
-  }
-  const ko = t.matches.filter(m => m.phase === 'ko');
-  if (ko.length) {
-    h += sec('Плей-офф');
-    for (const m of ko) {
-      const side = id => id >= 0 ? nameOf(id) : '<span class="dim">ждём…</span>';
-      const score = m.played ? `${m.s1} : ${m.s2}` : '–';
-      h += `<div class="or"><span class="n" style="font-size:11px">${esc(m.label.slice(0, 4))}</span>${side(m.t1)}<span class="pk">${score}</span></div>`;
-      h += `<div class="or" style="margin-top:-6px"><span class="n"></span>${side(m.t2)}<span class="pk"></span></div>`;
-    }
-  }
-  return h;
-}
-function showCareerProgress() {
+
+// ---------- хаб карьеры ----------
+function showCareer() {
+  if (!CAR) return showCareerCreate();
   const ready = careerReady();
-  let armed = false;
-  const pct = clamp((CAR.power - CAREER_START) / (CAREER_UNLOCK - CAREER_START), 0, 1) * 100;
-  const me = PL.get(CAREER_ID);
-  const h = topbar('Карьера', showMenu) + `<div class="scroll career">
-    <div class="car-hero">${portrait(me, null, ready ? COL.gold : COL.p2)}<div class="car-inf"><b class="ell">${esc(CAR.nick)}</b>
-      <span class="dim">Сила <b class="acc">${CAR.power}</b> из ${CAREER_UNLOCK}</span>
-      <div class="bar-track"><i style="width:${pct}%"></i></div>
-      <span class="dim" style="font-size:12px">Турниров выиграно: ${CAR.wins} · сыграно турниров: ${CAR.tours || 0} · матчей: ${CAR.games}</span></div></div>
-    ${ready
-      ? `<div class="car-done"><b>Игрок доступен для драфта.</b><br>Его выбирают в драфте сезона, на ESL Pro League и на ESL One. Сила зафиксирована на ${CAR.power} и больше не меняется.</div>`
-      : `<div class="dim" style="font-size:13px">Следующий турнир: <b>${esc(CAREER_STAGES[CAR.stage].title)}</b>. Соперники — команды пула силой примерно 40–55 и команды высшей лиги. Игрок выступает без команды. Победа в турнире даёт +${CAREER_STEP}.</div>`}
-    ${sec('Турнирная таблица')}${careerTableHtml(CAR.tour)}
-  </div><div class="bottom"><div class="row2" style="grid-template-columns:${ready ? '1fr' : '3fr 2fr'}">${ready ? '' : `<button class="btn main" ${on(careerContinue)}>${CAR.tour ? 'ПРОДОЛЖИТЬ ТУРНИР' : 'ИГРАТЬ ТУРНИР'}</button>`}<button class="btn" ${on((e, el) => { if (!armed) { armed = true; el.textContent = 'Точно сбросить?'; el.style.color = COL.bad; return; } resetCareer(); })}>СБРОСИТЬ КАРЬЕРУ</button></div></div>`;
-  screen(h);
+  const pro = ready ? `<div class="pro-banner"><div class="pb-k">ПРО-ИГРОК</div><b>Ты поднялся на уровень про-игрока.</b>
+      <span>Теперь тебя можно выбрать в драфте сезона, на ESL Pro League и ESL One. Очки приносят ESL One, титулы и чемпионаты, а DreamHack даёт силу и очки.</span></div>` : '';
+  const btns = `
+    ${ready ? '' : `<button class="btn main" ${on(showCareerProgress)}>ТУРНИР КАРЬЕРЫ<small>${CAR.tour ? 'продолжить · ' + esc(tourTitle(CAR.tour)) : 'следующий: ' + CAREER_SIZES[CAR.stage] + ' игроков'}</small></button>`}
+    ${ready ? `<button class="btn main" ${on(showDream)}>DREAMHACK<small>32 игрока · победа даёт силу и 1000 очков</small></button>` : ''}
+    <button class="btn" ${on(() => showLadder())}>ЛАДДЕР<small>кубик выбирает соперника и ставку</small></button>
+    <button class="btn" ${on(showFreePick)}>ТУРНИР НА ВЫБОР<small>8, 12 или 16 случайных игроков</small></button>`;
+  screen(topbar('Карьера', showMenu) + `<div class="scroll career">${careerCard(false)}${pro}${btns}
+    <div class="row2" style="grid-template-columns:1fr;margin-top:8px"><button class="btn" ${on((e, el) => { if (!el.dataset.armed) { el.dataset.armed = '1'; el.textContent = 'Точно сбросить? Прогресс исчезнет'; el.style.color = COL.bad; return; } resetCareer(); })}>СБРОСИТЬ КАРЬЕРУ</button></div>
+  </div>`);
 }
-// Отборочные: три турнира по кругу (1 → 2 → 3 → 1 …). Игрок — один из участников, соперники — команды.
-const CAREER_STAGES = [
-  { title: 'Single Elimination · 8 участников', pool: 7, high: 0 },
-  { title: 'Две группы по 6 · полуфиналы и финал · 12 участников', pool: 7, high: 4 },
-  { title: 'Лига каждый с каждым · топ-4 · 14 участников', pool: 7, high: 6 },
-];
-const pickOne = a => a[rnd(a.length)];
-function careerNewTour(stage) {
-  const F = CAREER_STAGES[stage];
-  const pool = shuffle(DATA.teams.filter(t => t.pool)).slice(0, F.pool).map(t => t.id);
-  const high = shuffle(DATA.teams.filter(t => !t.pool && t.region < 5)).slice(0, F.high).map(t => t.id);
-  const teamIds = [...pool, ...high];
-  const roster = { [CAREER_ID]: CAREER_ID };
-  for (const id of teamIds) { const t = TM.get(id); roster[id] = t.pool ? t.player : pickOne(inRegion(t.region)).id; }
-  const ids = shuffle([CAREER_ID, ...teamIds]);
-  const t = { v2: true, kind: 'career', stage, ids, roster, matches: [], champion: -1, groups: [] };
-  const KO = (key, label, a, b) => t.matches.push({ key, phase: 'ko', label, src: [a, b], t1: -1, t2: -1, s1: 0, s2: 0, played: false });
-  const RR = (g, list, label) => { for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) t.matches.push({ key: 'G' + t.matches.length, phase: 'grp', group: g, label, t1: list[i], t2: list[j], s1: 0, s2: 0, played: false }); };
-  if (stage === 0) {
-    for (let i = 0; i < 4; i++) KO('Q' + i, 'Четвертьфинал', 'P' + (2 * i), 'P' + (2 * i + 1));
-    KO('S0', 'Полуфинал', 'W:Q0', 'W:Q1'); KO('S1', 'Полуфинал', 'W:Q2', 'W:Q3'); KO('F', 'Финал', 'W:S0', 'W:S1');
-  } else if (stage === 1) {
-    RR(0, ids.slice(0, 6), 'Группа A'); RR(1, ids.slice(6, 12), 'Группа B');
-    KO('S0', 'Полуфинал', 'G:0:0', 'G:1:1'); KO('S1', 'Полуфинал', 'G:1:0', 'G:0:1'); KO('F', 'Финал', 'W:S0', 'W:S1');
-  } else {
-    RR(0, ids, 'Лига');
-    KO('S0', 'Полуфинал', 'G:0:0', 'G:0:3'); KO('S1', 'Полуфинал', 'G:0:1', 'G:0:2'); KO('F', 'Финал', 'W:S0', 'W:S1');
+
+// ---------- турнир: участники — игрок и гости (ник из пула, случайный флаг и портрет, сила). Гости — без команд ----------
+const cKO = (t, key, label, a, b) => t.matches.push({ key, phase: 'ko', label, src: [a, b], t1: -1, t2: -1, s1: 0, s2: 0, played: false });
+function cRR(t, g, list, label, twice) {
+  for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+    t.matches.push({ key: 'G' + t.matches.length, phase: 'grp', group: g, label, t1: list[i], t2: list[j], s1: 0, s2: 0, played: false });
+    if (twice) t.matches.push({ key: 'G' + t.matches.length, phase: 'grp', group: g, label, t1: list[j], t2: list[i], s1: 0, s2: 0, played: false });
+  }
+}
+const splitN = (list, gs) => { const per = list.length / gs, out = []; for (let g = 0; g < gs; g++) out.push(list.slice(g * per, (g + 1) * per)); return out; };
+const GROUP_PAIRS = [['G:0:0', 'G:1:1'], ['G:2:0', 'G:3:1'], ['G:1:0', 'G:0:1'], ['G:3:0', 'G:2:1']];
+function cPlayoff8(t, pairs) {
+  pairs.forEach(([a, b], i) => cKO(t, 'Q' + i, 'Четвертьфинал', a, b));
+  cKO(t, 'S0', 'Полуфинал', 'W:Q0', 'W:Q1'); cKO(t, 'S1', 'Полуфинал', 'W:Q2', 'W:Q3'); cKO(t, 'F', 'Финал', 'W:S0', 'W:S1');
+}
+function makeGuest(id, lo, hi, fixed) {
+  return { id, nickname: '', country: pickOne(FLAG_LIST), portrait: pickOne(careerPortraitOptions()), power: fixed != null ? fixed : lo + rnd(hi - lo + 1), region: 5, skill: 'Гость турнира. Играет на своей силе.', guest: true };
+}
+// kind: career (от 10 до 40), free (до 50), dream (все по 65). size: 8, 12, 16 или 32
+function makeTour(kind, size) {
+  const lo = 10, hi = kind === 'free' ? 50 : 40;
+  const names = shuffle(careerNickPool()), ids = [CAREER_ID], guests = {};
+  for (let i = 0; i < size - 1; i++) {
+    const id = GUEST_BASE + i, g = makeGuest(id, lo, hi, kind === 'dream' ? 65 : null);
+    g.nickname = names[i % names.length]; guests[id] = g; ids.push(id);
+  }
+  const t = { v3: true, kind, size, ids: shuffle(ids), guests, matches: [], champion: -1, expanded: true };
+  if (size === 8) cPlayoff8(t, [['P0', 'P1'], ['P2', 'P3'], ['P4', 'P5'], ['P6', 'P7']]);
+  else if (size === 12) {
+    const [A, B] = splitN(t.ids, 2);
+    cRR(t, 0, A, 'Группа A', false); cRR(t, 1, B, 'Группа B', false);
+    cKO(t, 'S0', 'Полуфинал', 'G:0:0', 'G:1:1'); cKO(t, 'S1', 'Полуфинал', 'G:1:0', 'G:0:1'); cKO(t, 'F', 'Финал', 'W:S0', 'W:S1');
+  } else if (size === 16) {
+    splitN(t.ids, 4).forEach((L, g) => cRR(t, g, L, 'Группа ' + 'ABCD'[g], false));
+    cPlayoff8(t, GROUP_PAIRS);
+  } else { // DreamHack: сначала пары, половина вылетает; группы создаются, когда пары сыграны
+    for (let i = 0; i < 16; i++) cKO(t, 'R' + i, 'Отбор', 'P' + 2 * i, 'P' + (2 * i + 1));
+    t.expanded = false;
   }
   return t;
 }
-// Всё, что не касается игрока, считается сразу. Возвращает следующий матч игрока или null, если турнир окончен.
-function careerRun(t) {
-  let m, g = 0;
-  while (g++ < 500 && (m = tNext(t))) {
-    if (m.t1 === CAREER_ID || m.t2 === CAREER_ID) return m;
-    const [x, y] = simMatch(tPlayer(t, m.t1), tTeam(t, m.t1), tPlayer(t, m.t2), tTeam(t, m.t2));
-    careerReport(t, m, x, y);
-  }
-  return null;
+// DreamHack: после пар — 4 группы по 4, каждый с каждым дважды, из группы выходят двое, дальше плей-офф на 8
+function expandTour(t) {
+  const rounds = t.matches.filter(m => m.key[0] === 'R');
+  if (t.expanded || !rounds.every(m => m.played)) return;
+  t.expanded = true;
+  const w = shuffle(rounds.map(m => win(m)));
+  splitN(w, 4).forEach((L, g) => cRR(t, g, L, 'Группа ' + 'ABCD'[g], true));
+  cPlayoff8(t, GROUP_PAIRS);
 }
-// s1/s2 — очки стороны t1/t2
-function careerReport(t, m, s1, s2) {
+function cReport(t, m, s1, s2) {
   if (m.played) return;
   m.s1 = s1; m.s2 = s2; m.played = true;
   if (m.t1 === CAREER_ID || m.t2 === CAREER_ID) CAR.games++;
+  expandTour(t);
   if (m.key === 'F') t.champion = win(m);
+  saveCareer();
 }
 function careerContinue() {
-  if (!CAR.tour) CAR.tour = careerNewTour(CAR.stage);
-  const m = careerRun(CAR.tour);
+  if (!CAR.tour) { CAR.tour = makeTour('career', CAREER_SIZES[CAR.stage]); saveCareer(); }
+  const m = tNext(CAR.tour);
   saveCareer();
   if (!m) return careerFinish();
   showCareerMatch(m);
 }
 function careerFinish() {
-  const won = CAR.tour.champion === CAREER_ID, before = CAR.power;
-  if (won && CAR.power < CAREER_UNLOCK) { CAR.power = Math.min(CAREER_UNLOCK, CAR.power + CAREER_STEP); CAR.wins++; }
-  CAR.tours = (CAR.tours || 0) + 1;
-  CAR.stage = (CAR.stage + 1) % CAREER_STAGES.length;
-  CAR.tour = null;
-  saveCareer();
-  const txt = won ? `<b>Победа в турнире!</b><br>Сила ${before} → ${CAR.power}.` : '<b>Турнир окончен.</b><br>Чемпион — другой участник. Сила не изменилась.';
-  screen(topbar('Карьера · итоги', showCareerProgress) + `<div class="scroll career"><div class="car-done">${txt}</div>
-    ${careerReady() ? '<div class="dim" style="font-size:13px">Сила 65 достигнута: игрок доступен для драфта.</div>' : ''}</div>
-    <div class="bottom"><button class="btn main" ${on(showCareerProgress)}>ДАЛЕЕ</button></div>`);
+  const t = CAR.tour, won = t.champion === CAREER_ID;
+  let title = tourTitle(t), txt;
+  if (t.kind === 'career') {
+    const before = CAR.power;
+    if (won) { CAR.power = Math.min(CAREER_UNLOCK, CAR.power + CAREER_STEP); CAR.wins++; }
+    CAR.stage = (CAR.stage + 1) % CAREER_SIZES.length;
+    CAR.tours++;
+    txt = won ? '<b>Победа в турнире!</b><br>Ты ближе к про-уровню.' : '<b>Турнир окончен.</b><br>Чемпион — другой участник.';
+    if (won && before < CAREER_UNLOCK && CAR.power >= CAREER_UNLOCK) txt += '<br><br><b>Ты стал про-игроком!</b> Тебя можно выбрать в драфте, на ESL Pro League и ESL One.';
+  } else if (t.kind === 'dream') {
+    if (won) { CAR.power += CAREER_STEP; CAR.dreamWins++; txt = '<b>DreamHack выигран!</b><br>+1000 очков и +5 силы.'; CAR.tour = null; addScore(1000); }
+    else txt = '<b>DreamHack окончен.</b><br>Чемпион — другой участник.';
+  } else {
+    txt = won ? '<b>Ты выиграл турнир!</b><br>Очки и сила не начисляются.' : '<b>Турнир окончен.</b><br>Чемпион — другой участник.';
+  }
+  CAR.tour = null; saveCareer();
+  screen(topbar('Итоги · ' + title, showCareer) + `<div class="scroll career"><div class="car-done">${txt}</div></div>
+    <div class="bottom"><button class="btn main" ${on(showCareer)}>ДАЛЕЕ</button></div>`);
+}
+
+// ---------- экран турнира: игрок и прогресс · следующий соперник · сетка ----------
+function careerNextHtml(t) {
+  const mine = t.matches.filter(m => !m.played && (m.t1 === CAREER_ID || m.t2 === CAREER_ID));
+  if (!mine.length) return '<div class="dim cnote">Твои бои в этом турнире закончились. Нажми «Играть следующий бой», чтобы доиграть остальные.</div>';
+  const pm = mine[0];
+  if (pm.t1 < 0 || pm.t2 < 0) return `<div class="dim cnote">${esc(pm.label)}: соперник определится после предыдущих боёв.</div>`;
+  const oid = pm.t1 === CAREER_ID ? pm.t2 : pm.t1, p = tPlayer(t, oid);
+  return `<div class="opp">${portrait(p, null, COL.panel2, 'sm')}<div class="car-inf"><b class="ell">${esc(p.nickname)}</b><span class="dim" style="font-size:12px">${esc(pm.label)}</span></div></div>`;
+}
+function careerGroupsHtml(t) {
+  const groups = [...new Set(t.matches.filter(m => m.phase === 'grp').map(m => m.group))];
+  return groups.map(g => {
+    const lbl = t.matches.find(m => m.phase === 'grp' && m.group === g).label;
+    const rows = standingsOf(tGroupMatches(t, g)).map((r, i) => `<div class="gr ${i < 2 ? 'now' : ''}"><span class="n">${i + 1}</span>${cMini(t, r.team)}<span class="pk">${r.wins}-${r.losses}</span></div>`).join('');
+    return `<div class="gh">${esc(lbl)}</div><div class="gl">${rows}</div>`;
+  }).join('');
+}
+function careerBracketHtml(t, next) {
+  const row = (id, sc, played) => {
+    if (id == null || id < 0) return '<div class="bk-r"><span class="dim ell">ждём…</span></div>';
+    return `<div class="bk-r ${id === CAREER_ID ? 'me' : ''}">${cMini(t, id)}<span class="bk-s">${played ? sc : ''}</span></div>`;
+  };
+  const card = m => {
+    const mine = m.t1 === CAREER_ID || m.t2 === CAREER_ID, isNext = !!next && next.key === m.key;
+    return `<div class="bk-m ${mine ? 'mine' : ''} ${isNext ? 'now' : ''}">${row(m.t1, m.s1, m.played)}${row(m.t2, m.s2, m.played)}</div>`;
+  };
+  const ko = t.matches.filter(m => m.phase === 'ko');
+  if (!ko.length) return '';
+  const cols = [['отбор', ko.filter(m => m.key[0] === 'R')], ['четв', ko.filter(m => m.key[0] === 'Q')], ['полу', ko.filter(m => m.key[0] === 'S')]].filter(c => c[1].length);
+  const fin = ko.filter(m => m.key === 'F');
+  return `<div class="bk">
+    ${cols.length ? `<div class="bk-cols">${cols.map(([title, ms]) => `<div class="bk-col"><div class="bk-h">${title}</div>${ms.map(card).join('')}</div>`).join('')}</div>` : ''}
+    ${fin.length ? `<div class="bk-fin"><div class="bk-h">финал турнира</div>${fin.map(card).join('')}</div>` : ''}
+  </div>`;
+}
+function showCareerProgress() {
+  if (!CAR) return showCareerCreate();
+  const t = CAR.tour;
+  if (!t) return showCareerStart();
+  const next = tNext(t), me = PL.get(CAREER_ID);
+  const pct = clamp((CAR.power - CAREER_START) / (CAREER_UNLOCK - CAREER_START), 0, 1) * 100;
+  const h = topbar(tourTitle(t), showCareer) + `<div class="scroll career">
+    <div class="cbox"><div class="cbox-h">Игрок и прогресс</div>
+      <div class="car-hero">${portrait(me, null, COL.gold, 'sm')}<div class="car-inf"><b class="ell">${esc(CAR.nick)}</b>
+        <span class="dim">${t.size} игроков · ${esc(FORMAT_NAME[t.size])}</span>
+        ${t.kind === 'career' ? `<span class="dim" style="font-size:12px">Этап ${CAR.stage + 1} из ${CAREER_SIZES.length}</span><div class="bar-track"><i style="width:${pct}%"></i></div>` : ""}
+      </div></div></div>
+    <div class="cbox"><div class="cbox-h">Следующий соперник</div>${careerNextHtml(t)}</div>
+    <div class="cbox"><div class="cbox-h">Сетка турнира</div>${careerGroupsHtml(t)}${careerBracketHtml(t, next)}</div>
+  </div><div class="bottom"><button class="btn main" ${on(careerContinue)}>ИГРАТЬ СЛЕДУЮЩИЙ БОЙ</button></div>`;
+  screen(h);
+}
+function showCareerStart() {
+  const size = CAREER_SIZES[CAR.stage];
+  screen(topbar('Турнир карьеры', showCareer) + `<div class="scroll career">
+    <div class="cbox"><div class="cbox-h">Следующий турнир</div>
+      <b>${size} игроков · ${esc(FORMAT_NAME[size])}</b>
+      <div class="dim cnote">Соперники — случайные игроки без команд. Все бои идут на экране, и ты видишь каждый. Победа в турнире даёт шаг к про-уровню.</div></div>
+  </div><div class="bottom"><button class="btn main" ${on(careerContinue)}>ИГРАТЬ ТУРНИР</button></div>`);
 }
 function showCareerMatch(m) {
-  const t = CAR.tour, oppId = m.t1 === CAREER_ID ? m.t2 : m.t1;
-  const op = tPlayer(t, oppId), ot = tTeam(t, oppId);
-  screen(topbar('Карьера · ' + m.label, showCareerProgress) + `<div class="scroll career">
-    <div class="dim" style="font-size:13px">${esc(CAREER_STAGES[t.stage].title)}</div>
-    ${sec('Соперник')}<div class="car-hero">${logo(ot)}<div class="car-inf"><b class="ell">${esc(ot.name)}</b><span class="dim" style="font-size:12px">команда пула или высшей лиги</span></div></div>
-    <div class="dim" style="font-size:13px">Сила соперника: ${power(op, ot)} · твоя сила: ${CAR.power}</div>
-  </div><div class="bottom"><button class="btn main" ${on(() => {
-      const me = PL.get(CAREER_ID);
-      startMatch(me, null, op, ot, 'Карьера · ' + m.label, (s1, s2) => {
-        careerReport(t, m, m.t1 === CAREER_ID ? s1 : s2, m.t1 === CAREER_ID ? s2 : s1);
-        careerContinue();
-      }, showCareerProgress, false);
-    })}>ИГРАТЬ МАТЧ</button></div>`);
+  const t = CAR.tour, mine = m.t1 === CAREER_ID || m.t2 === CAREER_ID, label = tourTitle(t) + ' · ' + m.label;
+  const side = id => { const p = tPlayer(t, id), me = id === CAREER_ID; return `<div class="mside ${me ? 'me' : ''}">${portrait(p, null, me ? COL.gold : COL.panel2)}<b class="ell">${me ? 'Ты · ' + esc(CAR.nick) : esc(p.nickname)}</b></div>`; };
+  screen(topbar(label, showCareerProgress) + `<div class="scroll career">
+    <div class="dim cnote">${esc(tourTitle(t))} · ${esc(m.label)}</div>
+    <div class="cvs">${side(m.t1)}<b class="cvs-x">VS</b>${side(m.t2)}</div>
+    <div class="dim cnote">${mine ? 'Твой бой. Он идёт полностью, как в обычном режиме.' : 'Бой другого участника. Смотри его так же, как свой.'}</div>
+  </div><div class="bottom"><button class="btn main" ${on(() => startMatch(tPlayer(t, m.t1), null, tPlayer(t, m.t2), null, label,
+      (s1, s2) => { cReport(t, m, s1, s2); careerContinue(); }, showCareerProgress, false))}>${mine ? 'ИГРАТЬ МАТЧ' : 'СМОТРЕТЬ БОЙ'}</button></div>`);
+}
+
+// ---------- события, которые меняют карьеру ----------
+function careerWorldsWin() { CAR.power = Math.max(CAR.power, CAREER_WORLDS_POWER); addScore(150); }
+function careerTeamPick(pid, teamId) { if (CAR && pid === CAREER_ID) { CAR.lastTeam = teamId; saveCareer(); } }
+
+// ---------- DreamHack ----------
+function showDream() {
+  if (!CAR) return showCareerCreate();
+  if (CAR.tour) return showCareerProgress();
+  screen(topbar('DreamHack', showCareer) + `<div class="scroll career">
+    <div class="cbox"><div class="cbox-h">DreamHack</div>
+      <div class="dim cnote">32 игрока: ты и 31 случайный игрок с силой 65. Сначала пары — вылетает половина. Потом 4 группы по 4, где каждый играет с каждым дважды, и из группы выходят двое. Дальше плей-офф на 8.</div>
+      <div class="dim cnote">Победа: +5 силы и 1000 очков. Выиграть можно несколько раз.</div></div>
+  </div><div class="bottom"><button class="btn main" ${on(() => { CAR.tour = makeTour('dream', 32); saveCareer(); showCareerProgress(); })}>НАЧАТЬ DREAMHACK</button></div>`);
+}
+
+// ---------- турнир на выбор: 8, 12 или 16 случайных игроков ----------
+function showFreePick() {
+  if (!CAR) return showCareerCreate();
+  const busy = CAR.tour ? `<div class="dim cnote">Сейчас идёт турнир «${esc(tourTitle(CAR.tour))}». Сначала доиграй его.</div>` : '';
+  screen(topbar('Турнир на выбор', showCareer) + `<div class="scroll career">
+    <div class="cbox"><div class="cbox-h">Турнир на выбор</div>
+      <div class="dim cnote">Случайные игроки: ник, флаг, портрет и сила до 50. За такой турнир очки и сила не начисляются.</div>${busy}</div>
+    ${[8, 12, 16].map(n => `<button class="btn" ${CAR.tour ? 'disabled' : on(() => { CAR.tour = makeTour('free', n); saveCareer(); showCareerProgress(); })}>Турнир на ${n} игроков<small>${esc(FORMAT_NAME[n])}</small></button>`).join('')}
+  </div>`);
+}
+
+// ---------- ладдер: кубик выбирает соперника и ставку ----------
+let LAD = null;
+function ladderDraw() {
+  const roll = 1 + rnd(6);
+  const strong = DATA.players.filter(p => p.region < 5), teams = DATA.teams.filter(t => t.region < 5 || t.ladder);
+  const strongOpp = roll >= 5;
+  let opp;
+  if (strongOpp) opp = pickOne(strong);
+  else { opp = makeGuest(9000 + rnd(900), 10, 60); opp.nickname = pickOne(careerNickPool()); PL.set(opp.id, opp); }
+  const withTeam = roll === 4 || roll === 6;
+  const pts = roll <= 3 ? { win: 2, lose: 3 } : roll === 4 ? { win: 3, lose: 3 } : { win: 5, lose: 5 };
+  const label = { 1: 'Игрок-гость', 2: 'Игрок-гость', 3: 'Игрок-гость', 4: 'Гость + бонус команды', 5: 'Игрок высшей лиги', 6: 'Игрок высшей лиги + команда' }[roll];
+  return { roll, opp, team: withTeam ? pickOne(teams) : null, win: pts.win, lose: pts.lose, label };
+}
+const ladderCard = L => `<div class="lad">
+  <div class="lad-die">${L.roll}</div>
+  <div class="lad-opp">${portrait(L.opp, L.team, COL.panel2, 'sm')}<div class="car-inf"><b class="ell">${esc(L.opp.nickname)}</b><span class="dim" style="font-size:12px">${esc(L.label)}</span></div></div>
+  <div class="dim cnote">Победа: <b class="acc">+${L.win}</b> · поражение: <b class="bad">−${L.lose}</b> очков</div></div>`;
+function showLadder(rolling) {
+  if (!CAR) return showCareerCreate();
+  let body;
+  if (rolling) body = '<div class="lad"><div class="lad-die" id="die">?</div><div class="dim cnote">Кубик катится…</div></div>';
+  else if (LAD) body = ladderCard(LAD);
+  else body = `<div class="dim cnote">Брось кубик: выпадет соперник и ставка. Очки сейчас: ${CAR.score}.</div>`;
+  const bottom = rolling ? '' : `<button class="btn main" ${on(LAD ? startLadder : rollLadder)}>${LAD ? 'ИГРАТЬ БОЙ' : 'БРОСИТЬ КУБИК'}</button>`;
+  screen(topbar('Ладдер', showCareer) + `<div class="scroll career"><div class="cbox"><div class="cbox-h">Ладдер</div>${body}</div></div><div class="bottom">${bottom}</div>`);
+}
+function rollLadder() {
+  showLadder(true);
+  let k = 0;
+  const timer = setInterval(() => {
+    const el = app.querySelector('#die');
+    if (!el) { clearInterval(timer); return; }
+    el.textContent = 1 + rnd(6);
+    if (++k >= 10) { clearInterval(timer); LAD = ladderDraw(); showLadder(); }
+  }, 80);
+}
+function startLadder() {
+  const L = LAD; if (!L) return;
+  startMatch(PL.get(CAREER_ID), null, L.opp, L.team, 'Ладдер · бой', (s1, s2) => {
+    const won = s1 > s2, before = CAR.score, delta = won ? L.win : -L.lose;
+    addScore(delta); LAD = null;
+    screen(topbar('Ладдер · итог', () => showLadder()) + `<div class="scroll career"><div class="car-done"><b>${won ? 'Победа!' : 'Поражение'}</b><br>${delta > 0 ? '+' + delta : '−' + Math.abs(delta)} очков · было ${before}, стало ${CAR.score}.</div></div>
+      <div class="bottom"><button class="btn main" ${on(() => showLadder())}>ДАЛЕЕ</button></div>`);
+  }, () => showLadder(), false);
 }
 
 let seasonResetArmed = false;
@@ -870,7 +1058,7 @@ function showRegion(r) {
 
 function showDraft(r) {
   if (D.regionState[r] !== RS.Draft) { showRegion(r); return; }
-  const picker = S.currentPicker(r), order = teamsIn(r), av = S.available(r);
+  const picker = S.currentPicker(r), order = S.draftOrder(r), av = S.available(r);
   const prev = app.querySelector('.scroll.sdraft'); const keep = prev ? prev.scrollTop : 0;
   let h = topbar('Драфт · ' + REG[r], showSeason) + `<div class="picker">${logo(picker)}<div style="min-width:0"><small>ПИК ${S.pickNumber(r)} ИЗ ${order.length} · ВЫБИРАЕТ</small><b class="ell">${esc(picker.name)}</b><span class="dim" style="font-size:12px">можно подписать свободного игрока из любого региона</span></div></div>
     <div class="scroll sdraft">${sec('Свободные игроки · ' + av.length)}`;
@@ -1033,12 +1221,13 @@ const tourStore = kind => kind === 'pro' ? PRO : ONE;
 function saveTour(kind) { if (kind === 'pro') { store.set(PKEY, PRO); cloudSave('pro'); } else { store.set(OKEY1, ONE); cloudSave('cup'); } }
 
 // участник → игрок / команда / подпись
-const tPlayer = (t, id) => (t.kind === 'pro' || t.kind === 'career') ? PL.get(t.roster[id]) : PL.get(id);
-const tTeam = (t, id) => t.kind === 'pro' ? TM.get(id) : t.kind === 'career' ? (TM.get(id) || null) : null;
+const tPlayer = (t, id) => t.kind === 'pro' ? PL.get(t.roster[id]) : CAREER_KINDS.has(t.kind) ? (id === CAREER_ID ? PL.get(CAREER_ID) : (t.guests[id] || null)) : PL.get(id);
+const tTeam = (t, id) => t.kind === 'pro' ? TM.get(id) : null;
 const tName = (t, id) => t.kind === 'pro' ? TM.get(id).name : PL.get(id).nickname;
 
 function tourNew(kind, size, ids, roster) {
   const F = FORMATS[size], order = shuffle(ids);
+  if (kind === 'one' && ids.includes(CAREER_ID)) addScore(5);
   const t = { v2: true, kind, size, ids: order, matches: [], champion: -1, groups: [], roster: roster || {} };
   if (kind === 'pro') { PRO.draft = null; PRO.edition++; t.edition = PRO.edition; }
   if (F.groups) {
@@ -1088,6 +1277,7 @@ function tReport(t, m, s1, s2) {
   m.s1 = s1; m.s2 = s2; m.played = true;
   if (m.key === 'F') {
     t.champion = win(m);
+    if (t.kind === 'pro' && t.roster[t.champion] === CAREER_ID) addScore(50);
     const T = tourStore(t.kind);
     if (t.kind === 'pro') T.history.push({ edition: t.edition, team: t.champion, player: t.roster[t.champion] });
     else T.history.push({ size: t.size, player: t.champion });
@@ -1155,13 +1345,13 @@ function showProDraft() {
       const av = inRegion(r).filter(p => !taken.has(p.id));
       if (!av.length) continue;
       h += `<div class="reg-h"><span class="bar" style="background:${RCOL[r]}"></span>${regionLogo(r)}<b style="color:${RCOL[r]}">${esc(REG[r].toUpperCase())}</b><span class="dim" style="font-size:12px">${r === pr ? 'регион команды · ' : ''}свободно ${av.length}</span></div><div class="dgrid">`;
-      for (const p of av) h += `<div class="dc" ${on(() => { d.picks[picker] = p.id; saveTour('pro'); showProDraft(); })}>${portrait(p, null)}<div class="nick ell">${esc(p.nickname)}</div><div class="sk">${esc(p.skill)}</div></div>`;
+      for (const p of av) h += `<div class="dc" ${on(() => { d.picks[picker] = p.id; careerTeamPick(p.id, picker); saveTour('pro'); showProDraft(); })}>${portrait(p, null)}<div class="nick ell">${esc(p.nickname)}</div><div class="sk">${esc(p.skill)}</div></div>`;
       h += '</div>';
     }
   }
   if (!done) {
     const cav = careerList().filter(p => !taken.has(p.id));
-    if (cav.length) { h += `<div class="reg-h"><span class="bar" style="background:${RCOL[5]}"></span><b style="color:${RCOL[5]}">КАРЬЕРА</b></div><div class="dgrid">`; for (const p of cav) h += `<div class="dc" ${on(() => { d.picks[picker] = p.id; saveTour('pro'); showProDraft(); })}>${portrait(p, null)}<div class="nick ell">${esc(p.nickname)}</div><div class="sk">${esc(p.skill)}</div></div>`; h += '</div>'; }
+    if (cav.length) { h += `<div class="reg-h"><span class="bar" style="background:${RCOL[5]}"></span><b style="color:${RCOL[5]}">КАРЬЕРА</b></div><div class="dgrid">`; for (const p of cav) h += `<div class="dc" ${on(() => { d.picks[picker] = p.id; careerTeamPick(p.id, picker); saveTour('pro'); showProDraft(); })}>${portrait(p, null)}<div class="nick ell">${esc(p.nickname)}</div><div class="sk">${esc(p.skill)}</div></div>`; h += '</div>'; }
   }
   h += sec(`Составы · ${n} из 24`);
   d.teams.forEach((id, k) => {
@@ -1196,11 +1386,7 @@ function showPick(kind, size, sel) {
     }
     h += '</div>';
   }
-  if (kind === 'pro') {
-    h += `<div class="reg-h"><span class="bar" style="background:${RCOL[5]}"></span><b style="color:${RCOL[5]}">ПУЛ КОМАНД</b></div><div class="tgrid">`;
-    for (const t of DATA.teams.filter(x => x.pool)) { const s = sel.includes(t.id); h += `<div class="tc ${s ? 'on' : ''} ${!s && sel.length >= size ? 'off' : ''}" ${on(() => toggle(t.id))}>${logo(t)}<span>${esc(t.name)}</span></div>`; }
-    h += '</div>';
-  } else if (careerList().length) {
+  if (kind !== 'pro' && careerList().length) {
     const cp = careerList()[0], s = sel.includes(CAREER_ID);
     h += `<div class="reg-h"><span class="bar" style="background:${RCOL[5]}"></span><b style="color:${RCOL[5]}">КАРЬЕРА</b></div><div class="pgrid"><div class="pc ${!s && sel.length >= size ? 'off' : ''}" ${on(() => toggle(CAREER_ID))}>${portrait(cp, null, s ? COL.gold : COL.panel2)}${s ? '<span class="num">✓</span>' : ''}<div class="nick ell">${esc(cp.nickname)}</div></div></div>`;
   }
@@ -1209,7 +1395,7 @@ function showPick(kind, size, sel) {
   h += `</div><div class="bottom"><div class="cup-count"><b>${sel.length}</b> из ${size} выбрано</div>
     <div class="row2"><button class="btn" ${on(() => showPick(kind, size, []))}>Очистить</button>
     <button class="btn" ${full ? 'disabled' : on(() => { const rest = shuffle(pool.filter(id => !sel.includes(id))); showPick(kind, size, sel.concat(rest.slice(0, size - sel.length))); })}>Добавить случайно</button></div>
-    <button class="btn main ${kind === 'pro' ? 'pro-btn' : ''}" ${full ? on(() => { if (kind === 'pro') { PRO.draft = { teams: sel.slice(), picks: {} }; sel.forEach(id => { const t = TM.get(id); if (t.pool) PRO.draft.picks[id] = t.player; }); saveTour('pro'); showProDraft(); } else { tourNew(kind, size, sel); showTour(kind); } }) : 'disabled'}>${full ? (kind === 'pro' ? 'К ДРАФТУ ИГРОКОВ' : 'НАЧАТЬ ТУРНИР') : `Выбери ещё ${size - sel.length}`}</button></div>`;
+    <button class="btn main ${kind === 'pro' ? 'pro-btn' : ''}" ${full ? on(() => { if (kind === 'pro') { PRO.draft = { teams: sel.slice(), picks: {} }; saveTour('pro'); showProDraft(); } else { tourNew(kind, size, sel); showTour(kind); } }) : 'disabled'}>${full ? (kind === 'pro' ? 'К ДРАФТУ ИГРОКОВ' : 'НАЧАТЬ ТУРНИР') : `Выбери ещё ${size - sel.length}`}</button></div>`;
   screen(h);
   app.querySelector('.scroll.cpick').scrollTop = keep;
 }

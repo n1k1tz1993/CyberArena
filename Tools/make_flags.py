@@ -217,6 +217,65 @@ FLAGS = {
     'is': lambda: nordic('#02529C', '#FFFFFF', '#DC1E35'),
 }
 
+# ---- дополнительные флаги (упрощённые: полосы, кресты, круги, треугольники) ----
+def addops(im, ops):
+    d = ImageDraw.Draw(im)
+    for op in ops:
+        k = op[0]
+        if k == 'r': d.rectangle((w * op[1], h * op[2], w * op[3], h * op[4]), fill=op[5])
+        elif k == 'c': d.ellipse((w * op[1] - h * op[3], h * op[2] - h * op[3], w * op[1] + h * op[3], h * op[2] + h * op[3]), fill=op[4])
+        elif k == 't': d.polygon([(w * x, h * y) for x, y in op[1]], fill=op[2])
+        elif k == 's': star(d, w * op[1], h * op[2], h * op[3], op[4])
+    return im
+
+def base(bg, ops): return addops(new(bg)[0], ops)
+
+GRN, WHT, RED, BLU, YEL, BLK = '#006600', '#FFFFFF', '#D52B1E', '#003893', '#FCD116', '#000000'
+EXTRA = {
+    'mx': lambda: addops(vstripes('#006847', '#FFFFFF', '#CE1126')[0], [('c', 0.5, 0.5, 0.09, '#8B5E3C')]),
+    'pt': lambda: base('#FFFFFF', [('r', 0, 0, 0.4, 1, '#006600'), ('r', 0.4, 0, 1, 1, '#FF0000'), ('c', 0.4, 0.5, 0.15, '#FFD700')]),
+    'cz': lambda: base('#FFFFFF', [('r', 0, 0.5, 1, 1, '#D7141A'), ('t', [(0, 0), (0.42, 0.5), (0, 1)], '#11457E')]),
+    'ch': lambda: base('#FF0000', [('r', 0.42, 0.2, 0.58, 0.8, '#FFFFFF'), ('r', 0.2, 0.42, 0.8, 0.58, '#FFFFFF')]),
+    'gr': lambda: addops(hstripes(*(['#0D5EAF', '#FFFFFF'] * 4 + ['#0D5EAF']))[0], [('r', 0, 0, 0.44, 0.56, '#0D5EAF')]),
+    'hr': lambda: hstripes('#FF0000', '#FFFFFF', '#171796')[0],
+    'si': lambda: hstripes('#FFFFFF', '#005DA4', '#ED1C24')[0],
+    'rs': lambda: hstripes('#C6363C', '#0C4076', '#FFFFFF')[0],
+    'ba': lambda: base('#002395', [('t', [(0, 0), (0.5, 0.5), (0, 1)], '#FECB00')]),
+    'lu': lambda: hstripes('#EF3340', '#FFFFFF', '#00A1DE')[0],
+    'eg': lambda: addops(hstripes('#CE1126', '#FFFFFF', '#000000')[0], [('c', 0.5, 0.5, 0.1, '#C09300')]),
+    'ng': lambda: vstripes('#008751', '#FFFFFF', '#008751')[0],
+    'in': lambda: addops(hstripes('#FF9933', '#FFFFFF', '#138808')[0], [('c', 0.5, 0.5, 0.12, '#000080')]),
+    'pk': lambda: base('#01411C', [('r', 0, 0, 0.25, 1, '#FFFFFF'), ('c', 0.6, 0.5, 0.2, '#FFFFFF')]),
+    'id': lambda: hstripes('#FF0000', '#FFFFFF')[0],
+    'th': lambda: hstripes('#A51931', '#F4F5F8', '#2D2A4A', '#F4F5F8', '#A51931', weights=[1, 1, 2, 1, 1])[0],
+    'ir': lambda: addops(hstripes('#239F40', '#FFFFFF', '#DA0000')[0], [('c', 0.5, 0.5, 0.1, '#DA0000')]),
+    'tn': lambda: base('#E70013', [('c', 0.45, 0.5, 0.24, '#FFFFFF'), ('c', 0.5, 0.5, 0.2, '#E70013')]),
+    'dz': lambda: base('#FFFFFF', [('r', 0, 0, 0.5, 1, '#006233'), ('c', 0.5, 0.5, 0.22, '#D21034')]),
+    'ma': lambda: addops(base('#C1272D', []), [('s', 0.5, 0.5, 0.22, '#006233')]),
+    'co': lambda: hstripes('#FCD116', '#003893', '#CE1126', weights=[2, 1, 1])[0],
+    'ec': lambda: hstripes('#FFDD00', '#034EA2', '#ED1C24', weights=[2, 1, 1])[0],
+    've': lambda: hstripes('#FCE300', '#00247D', '#CF142B')[0],
+    'bo': lambda: hstripes('#D52B1E', '#F9E300', '#007934', weights=[1, 2, 1])[0],
+    'py': lambda: hstripes('#D52B1E', '#FFFFFF', '#0038A8')[0],
+    'uy': lambda: addops(hstripes(*(['#FFFFFF', '#0038A8'] * 4 + ['#FFFFFF']))[0], [('c', 0.1, 0.1, 0.1, '#FCD116')]),
+    'do': lambda: base('#FFFFFF', [('r', 0, 0, 0.5, 0.5, '#002D62'), ('r', 0.5, 0, 1, 0.5, '#CE1126'), ('r', 0, 0.5, 0.5, 1, '#CE1126'), ('r', 0.5, 0.5, 1, 1, '#002D62'), ('r', 0.44, 0, 0.56, 1, '#FFFFFF'), ('r', 0, 0.44, 1, 0.56, '#FFFFFF')]),
+    'pe': lambda: vstripes('#D91023', '#FFFFFF', '#D91023')[0],
+    'gt': lambda: vstripes('#4997D0', '#FFFFFF', '#4997D0')[0],
+    'hn': lambda: hstripes('#0073CF', '#FFFFFF', '#0073CF')[0],
+    'sv': lambda: hstripes('#0F47AF', '#FFFFFF', '#0F47AF')[0],
+    'bd': lambda: base('#006A4E', [('c', 0.5, 0.5, 0.25, '#F42A41')]),
+    'mn': lambda: hstripes('#C4272F', '#015197', '#C4272F', weights=[1, 2, 1])[0],
+    'kg': lambda: base('#E8112D', [('c', 0.5, 0.5, 0.14, '#FFEF00')]),
+    'tj': lambda: hstripes('#CC0000', '#FFFFFF', '#006600')[0],
+    'az': lambda: hstripes('#0092BC', '#E4202B', '#00B140')[0],
+    'ge': lambda: base('#FFFFFF', [('r', 0.42, 0, 0.58, 1, '#FF0000'), ('r', 0, 0.42, 1, 0.58, '#FF0000')]),
+    'ph': lambda: base('#0038A8', [('r', 0, 0.5, 1, 1, '#CE1126'), ('t', [(0, 0), (0, 1), (0.45, 0.5)], '#FFFFFF'), ('c', 0.2, 0.5, 0.1, '#FCD116')]),
+    'ae': lambda: base('#00732F', [('r', 0, 0.33, 1, 0.66, '#FFFFFF'), ('r', 0, 0.66, 1, 1, '#000000'), ('r', 0, 0, 0.25, 1, '#FF0000')]),
+    'sa': lambda: base('#006C35', [('r', 0.2, 0.6, 0.8, 0.64, '#FFFFFF')]),
+    'jo': lambda: base('#007A3D', [('r', 0, 0, 1, 0.33, '#000000'), ('r', 0, 0.33, 1, 0.66, '#FFFFFF'), ('t', [(0, 0.33), (0, 0.66), (0.3, 0.5)], '#CE1126')]),
+}
+FLAGS.update(EXTRA)
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     for code, fn in FLAGS.items():

@@ -6,7 +6,7 @@ HERE=os.path.dirname(os.path.abspath(__file__))+'/'
 R=HERE+'../Assets/EsportsSim/Resources/'; W=HERE
 roster=json.load(open(R+'roster.json',encoding='utf-8')); teams=json.load(open(R+'teams.json',encoding='utf-8'))
 players=[{k:p[k] for k in ('id','nickname','skill','power','region','portrait','country') if k in p} for p in roster['players']]
-data={'regions':roster['regions'],'players':players,'careerPortraits':roster.get('careerPortraits',[]),'teams':[{k:t[k] for k in ('id','name','region','bonus','logo','pool','player') if k in t} for t in teams['teams']]}
+data={'regions':roster['regions'],'players':players,'careerPortraits':roster.get('careerPortraits',[]),'careerNicks':roster.get('careerNicks',[]),'teams':[{k:t[k] for k in ('id','name','region','bonus','logo','pool','player') if k in t} for t in teams['teams']]}
 def uri(img, fmt, **kw):
     b=io.BytesIO(); img.save(b, fmt, **kw)
     return 'data:image/%s;base64,%s'%(fmt.lower(), base64.b64encode(b.getvalue()).decode())

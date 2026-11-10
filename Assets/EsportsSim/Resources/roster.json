@@ -7,7 +7,8 @@
   "LCK",
   "Пул команд"
  ],
- "careerPortraits": ["career01", "career02", "career03", "career04", "career05", "career06", "career07", "career08", "career09", "career10", "career11", "career12", "career13"],
+ "careerPortraits": ["career01", "career02", "career03", "career04", "career05", "career06", "career07", "career08", "career09", "career10", "career11", "career12", "career13", "career14", "career15", "career16", "career17", "career18", "career19", "career20", "career21", "career22", "career23", "career24", "career25", "career26", "career27", "career28", "career29", "career30", "career31", "career32", "career33"],
+  "careerNicks": ["zU", "Qw", "eGG", "vV", "rAw", "b0", "KEK", "yX", "OwO", "Ff", "xXpanicDuckXx", "BREAD.exe", "GrandpaPeek", "sKiLlLeSs", "404socks", "WHO.ate.my.RAM", "feralPOTATO", "AltF4Enjoyer", "BUGsniffer", "iLickWalls", "MOUSE.in.SOUP", "zzZAPzz", "uncookedBOSS", "ToiletWizard", "NOthoughts", "b o n k", "JPEGwarrior", "CringeDelivery", "MEOW.exe", "lagLasagna", "xXsadForkXx", "DONTfeedME", "WiFiRat", "SoupWithLegs", "aAaCHOO", "brainONvacation", "CursedNoodle", "PANTS.diff", "oopsAllCrits", "FROGdealer", "DefinitelyAFK", "CapsLockGoblin", "o_Oops", "MicrowaveMain", "HONK.honk", "keyboardSOUP", "UnpaidBoss", "SmolDisaster", "PingOver9000", "LastTwoNeurons", "qZ", "uWu", "Vx", "ooF", "Xq", "zzz", "iM", "nOp", "eK", "YAY", "xXToasterXx", "BRAIN404", "milk.exe", "SirBonk", "waffleCRIME", "noAimOnlyVibes", "CHOMP", "crabRAVE", "who.is.me", "BEEPboop", "SoggyLegend", "ctrlALTdefeat", "M0TH", "goblinMODE", "AAAaaaa", "WiFiGoblin", "NotYourDad", "p i n g", "ChairAbuser", "xxVOIDxx", "soupEnjoyer", "FROG.tax", "dOnT.bLiNk", "yeet.exe", "TaxEvader", "mlem", "LOWbattery", "GrannyDiff", "NPC.exe", "WHYsoWET", "bonkBONK", "404brain", "oO_oO", "ElbowGaming", "SADlasagna", "AFKinside", "Panic.exe", "iEatLag", "SKILLissue", "FinalBraincell"],
  "players": [
   {
    "id": 1,
@@ -1106,94 +1107,6 @@
    "region": 4,
    "portrait": "p100",
    "country": "KR",
-   "real": true,
-   "ready": true
-  },
-  {
-   "id": 101,
-   "nickname": "Unforgiven",
-   "skill": "Без пощады. Не даёт соперникам ни одного шанса.",
-   "power": 48,
-   "region": 5,
-   "portrait": "pool_silhouette",
-   "country": "IL",
-   "real": true,
-   "ready": true
-  },
-  {
-   "id": 102,
-   "nickname": "Shushei",
-   "skill": "Тихое мастерство. Работает незаметно, но результативно.",
-   "power": 41,
-   "region": 5,
-   "portrait": "pool_silhouette",
-   "country": "PL",
-   "real": true,
-   "ready": true
-  },
-  {
-   "id": 103,
-   "nickname": "Maloono",
-   "skill": "Неожиданный поворот. Разворачивает ход боя в свою пользу.",
-   "power": 50,
-   "region": 5,
-   "portrait": "pool_silhouette",
-   "country": "FR",
-   "real": true,
-   "ready": true
-  },
-  {
-   "id": 104,
-   "nickname": "Zest",
-   "skill": "Заряд энергии. Ускоряется с каждым ударом.",
-   "power": 43,
-   "region": 5,
-   "portrait": "pool_silhouette",
-   "country": "TW",
-   "real": true,
-   "ready": true
-  },
-  {
-   "id": 105,
-   "nickname": "HoSaN",
-   "skill": "Упорство до конца. Не сдаётся ни при каких обстоятельствах.",
-   "power": 49,
-   "region": 5,
-   "portrait": "pool_silhouette",
-   "country": "DE",
-   "real": true,
-   "ready": true
-  },
-  {
-   "id": 106,
-   "nickname": "Reaper",
-   "skill": "Жатва. Собирает урон с ослабевшего соперника.",
-   "power": 40,
-   "region": 5,
-   "portrait": "pool_silhouette",
-   "country": "VN",
-   "real": true,
-   "ready": true
-  },
-  {
-   "id": 107,
-   "nickname": "Envy",
-   "skill": "Зависть соперника. Заставляет его ошибаться.",
-   "power": 47,
-   "region": 5,
-   "portrait": "pool_silhouette",
-   "country": "US",
-   "real": true,
-   "ready": true
-  },
-  {
-   "id": 108,
-   "nickname": "Fomko",
-   "skill": "Русский характер. Побеждает, когда все уже уверены в поражении.",
-   "power": 42,
-   "region": 5,
-   "portrait": "pool_silhouette",
-   "country": "RU",
    "real": true,
    "ready": true
   }
