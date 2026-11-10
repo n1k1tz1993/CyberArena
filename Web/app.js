@@ -52,7 +52,7 @@ if (CAR) { CAR.stage = CAR.stage || 0; CAR.tour = CAR.tour || null; CAR.tours = 
 function syncCareer() {
   for (const o of RET) PL.set(o.id, o);
   if (!CAR) return;
-  PL.set(CAREER_ID, { id: CAREER_ID, nickname: CAR.nick, skill: 'Карьера. Путь от отборочных до драфта.', power: CAR.power, region: 5, portrait: CAR.portrait, country: CAR.country, career: true });
+  PL.set(CAREER_ID, { id: CAREER_ID, nickname: CAR.nick, skill: 'Второе дыхание. Один раз в турнир выигрывает раунд из почти проигранной позиции.', power: CAR.power, region: 5, portrait: CAR.portrait, country: CAR.country, career: true });
 }
 function saveCareer() { store.set(CKEY, CAR); syncCareer(); }
 const careerReady = () => !!CAR && CAR.power >= CAREER_UNLOCK;
@@ -641,6 +641,32 @@ function showCareerCreate(st) {
   const inp = app.querySelector('#cnick');
   if (inp) inp.addEventListener('input', () => { st.nick = inp.value; });
 }
+// Таблица текущего турнира: группы и лига — таблица, плей-офф — сетка результатов. Никнеймы игроков пула не показываем.
+function careerTableHtml(t) {
+  if (!t) return '<div class="dim" style="font-size:13px">Турнир ещё не начат. Участники появятся после нажатия «Играть турнир».</div>';
+  const nameOf = id => id === CAREER_ID ? `<span class="nm"><b class="acc">Ты · ${esc(CAR.nick)}</b></span>` : `${logo(TM.get(id))}<span class="nm ell">${esc(TM.get(id).name)}</span>`;
+  let h = '';
+  const groups = [...new Set(t.matches.filter(m => m.phase === 'grp').map(m => m.group))];
+  for (const g of groups) {
+    const lbl = t.matches.find(m => m.phase === 'grp' && m.group === g).label;
+    h += sec(lbl);
+    standingsOf(tGroupMatches(t, g)).forEach((r, i) => {
+      const q = i < (t.stage === 2 ? 4 : 2);
+      h += `<div class="or ${q ? 'now' : ''}"><span class="n">${i + 1}</span>${nameOf(r.team)}<span class="pk">${r.wins}-${r.losses} · ${r.mw}:${r.ml}</span></div>`;
+    });
+  }
+  const ko = t.matches.filter(m => m.phase === 'ko');
+  if (ko.length) {
+    h += sec('Плей-офф');
+    for (const m of ko) {
+      const side = id => id >= 0 ? nameOf(id) : '<span class="dim">ждём…</span>';
+      const score = m.played ? `${m.s1} : ${m.s2}` : '–';
+      h += `<div class="or"><span class="n" style="font-size:11px">${esc(m.label.slice(0, 4))}</span>${side(m.t1)}<span class="pk">${score}</span></div>`;
+      h += `<div class="or" style="margin-top:-6px"><span class="n"></span>${side(m.t2)}<span class="pk"></span></div>`;
+    }
+  }
+  return h;
+}
 function showCareerProgress() {
   const ready = careerReady();
   let armed = false;
@@ -654,6 +680,7 @@ function showCareerProgress() {
     ${ready
       ? `<div class="car-done"><b>Игрок доступен для драфта.</b><br>Его выбирают в драфте сезона, на ESL Pro League и на ESL One. Сила зафиксирована на ${CAR.power} и больше не меняется.</div>`
       : `<div class="dim" style="font-size:13px">Следующий турнир: <b>${esc(CAREER_STAGES[CAR.stage].title)}</b>. Соперники — команды пула силой примерно 40–55 и команды высшей лиги. Игрок выступает без команды. Победа в турнире даёт +${CAREER_STEP}.</div>`}
+    ${sec('Турнирная таблица')}${careerTableHtml(CAR.tour)}
   </div><div class="bottom"><div class="row2" style="grid-template-columns:${ready ? '1fr' : '3fr 2fr'}">${ready ? '' : `<button class="btn main" ${on(careerContinue)}>${CAR.tour ? 'ПРОДОЛЖИТЬ ТУРНИР' : 'ИГРАТЬ ТУРНИР'}</button>`}<button class="btn" ${on((e, el) => { if (!armed) { armed = true; el.textContent = 'Точно сбросить?'; el.style.color = COL.bad; return; } resetCareer(); })}>СБРОСИТЬ КАРЬЕРУ</button></div></div>`;
   screen(h);
 }

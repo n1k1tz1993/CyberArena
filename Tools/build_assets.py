@@ -159,6 +159,11 @@ def main():
             else: out = normalize(img, eyes) if eyes else crop_square(img, 512)
             out.save(os.path.join(RES, 'Portraits', p['portrait'] + '.png'), optimize=True)
         else: print('нет картинки игрока:', p['portrait'])
+    # картинки для создания персонажа в карьере (без привязки к игроку)
+    for name in roster.get('careerPortraits', []):
+        src = find(SRC_PLAYERS, name)
+        if src: crop_square(Image.open(src), 512).convert('RGB').save(os.path.join(RES, 'Portraits', name + '.png'), optimize=True)
+        else: print('нет картинки карьеры:', name)
     for t in teams['teams']:
         src = find(SRC_LOGOS, t['logo'])
         if src:
