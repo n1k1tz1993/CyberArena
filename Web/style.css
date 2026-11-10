@@ -351,3 +351,8 @@ textarea:focus { outline: 2px solid var(--accent); }
 .bar-track { height: 10px; border-radius: 6px; background: #252E4A; overflow: hidden; }
 .bar-track i { display: block; height: 100%; background: linear-gradient(90deg, #2EE6D6, #FFC940); }
 .car-done { margin: 12px 0; padding: 12px 14px; border-radius: 12px; border: 1px solid #FFC940; background: rgba(255, 201, 64, 0.08); font-size: 14px; line-height: 1.4; }
+
+.ptlogo { display: flex; align-items: center; justify-content: center; overflow: hidden; background: #1B2238; }
+.ptlogo .logo { width: 84%; height: 84%; }
+.ptlogo img { width: 100%; height: 100%; object-fit: contain; }
+.car-hero .logo { width: 120px; height: 120px; flex: 0 0 120px; }
