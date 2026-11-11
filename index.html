@@ -1117,7 +1117,7 @@ const FORMAT_NAME = { 8: 'Single Elimination', 12: 'две группы по 6',
 const CAREER_SIZES = [8, 12, 16];
 const tourTitle = t => t.kind === 'dream' ? 'DreamHack' : t.kind === 'free' ? `Турнир на ${t.size}` : `Карьерный турнир · ${t.size}`;
 const cMini = (t, id) => {
-  if (id === CAREER_ID) return `<b class="acc ell">Ты · ${esc(CAR.nick)}</b>`;
+  if (id === CAREER_ID) return `<span class="fl">${flagImg(PL.get(CAREER_ID))}</span><b class="acc ell">Ты · ${esc(CAR.nick)}</b>`;
   const p = tPlayer(t, id);
   return `<span class="fl">${flagImg(p)}</span><span class="ell">${esc(p.nickname)}</span>`;
 };
