@@ -1247,7 +1247,7 @@ function cPlayoff8(t, pairs) {
   cKO(t, 'S0', 'Полуфинал', 'W:Q0', 'W:Q1'); cKO(t, 'S1', 'Полуфинал', 'W:Q2', 'W:Q3'); cKO(t, 'F', 'Финал', 'W:S0', 'W:S1');
 }
 function makeGuest(id, lo, hi, fixed) {
-  return { id, nickname: '', country: pickOne(FLAG_LIST), portrait: pickOne(careerPortraitOptions()), power: fixed != null ? fixed : lo + rnd(hi - lo + 1), region: 5, skill: 'Гость турнира. Играет на своей силе.', guest: true };
+  return { id, nickname: '', country: pickOne(FLAG_LIST), portrait: pickOne(careerPortraitOptions()), power: fixed != null ? fixed : lo + rnd(hi - lo + 1), region: 5, skill: 'Уверенный новичок.', guest: true };
 }
 // kind: career (от 10 до 35), free (до 50), dream (все по 65). size: 8, 12, 16 или 32
 function makeTour(kind, size) {
@@ -1488,8 +1488,8 @@ const LADDER_TOP = 2200;
 const ladderBonusTeams = () => DATA.teams.filter(t => t.bonus === 1);
 const ladderHighTeams = () => DATA.teams.filter(t => t.region < 5);
 const myTeam = () => TM.get(CAR.lastTeam) || null;
-// лига в ладдере: после 2200 рейтинга — мастер
-const ladderRank = s => s >= LADDER_TOP ? CRANKS.find(x => x.name === 'Мастер') : rankOf(s);
+// лига в ладдере считается теми же порогами, что и в главном меню
+const ladderRank = s => rankOf(s);
 function ladderGiveTeam(pool) {
   CAR.ladderTeams = CAR.ladderTeams || [];
   const fresh = pool.filter(t => !CAR.ladderTeams.includes(t.id));
