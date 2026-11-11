@@ -842,18 +842,21 @@ function careerContinue() {
 function careerFinish() {
   const t = CAR.tour, won = t.champion === CAREER_ID;
   let title = tourTitle(t), txt;
+  const weeklyBonus = won && t.size === 4 ? 15 : 0; // ESL ONE WEEKLY: +15 очков за победу
+  if (weeklyBonus) addScore(weeklyBonus);
+  const bonusTxt = weeklyBonus ? `<br>+${weeklyBonus} очков.` : '';
   if (t.kind === 'career') {
     const before = CAR.power;
     if (won) { CAR.power = Math.min(CAREER_UNLOCK, CAR.power + CAREER_STEP); CAR.wins++; }
     CAR.stage = (CAR.stage + 1) % CAREER_SIZES.length;
     CAR.tours++;
-    txt = won ? '<b>Победа в турнире!</b><br>Ты ближе к про-уровню.' : '<b>Турнир окончен.</b><br>Чемпион — другой участник.';
+    txt = won ? `<b>Победа в турнире!</b><br>Ты ближе к про-уровню.${bonusTxt}` : '<b>Турнир окончен.</b><br>Чемпион — другой участник.';
     if (won && before < CAREER_UNLOCK && CAR.power >= CAREER_UNLOCK) txt += '<br><br><b>Ты стал про-игроком!</b> Тебя можно выбрать в драфте, на ESL Pro League и ESL One.';
   } else if (t.kind === 'dream') {
     if (won) { CAR.power += CAREER_STEP; CAR.dreamWins++; txt = '<b>DreamHack выигран!</b><br>+1000 очков и +5 силы.'; CAR.tour = null; addScore(1000); }
     else txt = '<b>DreamHack окончен.</b><br>Чемпион — другой участник.';
   } else {
-    txt = won ? '<b>Ты выиграл турнир!</b><br>Очки и сила не начисляются.' : '<b>Турнир окончен.</b><br>Чемпион — другой участник.';
+    txt = won ? `<b>Ты выиграл турнир!</b>${bonusTxt || '<br>Очки и сила не начисляются.'}` : '<b>Турнир окончен.</b><br>Чемпион — другой участник.';
   }
   CAR.tour = null; saveCareer();
   screen(topbar('Итоги · ' + title, showCareer) + `<div class="scroll career"><div class="car-done">${txt}</div></div>
