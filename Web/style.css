@@ -444,3 +444,6 @@ img.rk { width: 30px; height: 30px; flex: 0 0 30px; object-fit: contain; filter:
 .cbtn small { display: block; font: 13px var(--body); font-weight: 400; opacity: .8; letter-spacing: 0; line-height: 1.25; }
 .cb-logo { flex: none; width: 60px; height: 60px; border-radius: 12px; background: #fff; padding: 4px; display: grid; place-items: center; }
 .cb-logo img { width: 100%; height: 100%; object-fit: contain; }
+
+/* главное меню: статус карьеры на отдельной строке под словом КАРЬЕРА */
+.bcar { flex-direction: column; gap: 4px; }
