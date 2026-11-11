@@ -136,10 +136,11 @@ let D;
 const fresh = (n, ht, hp, pids) => ({ number: n, phase: 0, regionState: [0, 0, 0, 0, 0], matches: [], draftPlayers: [], draftTeams: [], qualified: Array(15).fill(-1), wcQueue: [], wcNext: 0, wcWinner: -1, wcBye: -1, groups: [], champion: -1, championPlayer: '', historyTeams: ht || [], historyPlayers: hp || [], historyPids: pids || [] });
 function loadSeason() {
   D = store.get(SKEY, null);
+  if (D && Array.isArray(D.wcGuests)) D.wcGuests.forEach(g => PL.set(g.id, g));
   const ok = D && Array.isArray(D.matches) && Array.isArray(D.regionState) && D.regionState.length === 5 && Array.isArray(D.draftPlayers)
     && Array.isArray(D.draftTeams) && D.draftPlayers.length === D.draftTeams.length && Array.isArray(D.qualified) && D.qualified.length === 15
     && D.matches.every(m => TM.has(m.t1) && TM.has(m.t2)) && D.draftPlayers.every(id => PL.has(id)) && D.draftTeams.every(id => TM.has(id));
-  if (!ok) { D = fresh(1); saveSeason(); }
+  if (!ok) { D = fresh(1); saveSeason(); } else fillMissingPlayers();
   if (!Array.isArray(D.historyTeams)) D.historyTeams = [];
   if (!Array.isArray(D.historyPlayers)) D.historyPlayers = [];
   if (!Array.isArray(D.historyPids)) D.historyPids = [];
@@ -320,6 +321,23 @@ function advanceRegion(r) {
 }
 // Wild Card. Первый этап: все команды без путёвки разбиваются на случайные пары, проигравшие вылетают
 // (36 → 18; при нечётном числе одна команда проходит без игры). Затем «царь горы» среди оставшихся.
+// команды вне регионов (пул) не драфтятся: перед Wild Card (и при загрузке старого сезона) им генерируется игрок по схеме карьеры
+function fillMissingPlayers() {
+  if (!D || !Array.isArray(D.matches)) return;
+  const teams = [D.wcBye, D.wcWinner, ...(D.wcQueue || []), ...(D.groups || []), ...D.matches.flatMap(m => [m.t1, m.t2])];
+  const lack = [...new Set(teams)].filter(id => id >= 0 && TM.has(id) && !S.playerOf(id));
+  if (!lack.length) return;
+  D.wcGuests = Array.isArray(D.wcGuests) ? D.wcGuests : [];
+  const names = shuffle(careerNickPool());
+  for (const tid of lack) {
+    const g = makeGuest(8000 + D.wcGuests.length, 10, 35);
+    g.nickname = names[D.wcGuests.length % names.length];
+    g.skill = 'Уверенный новичок.';
+    PL.set(g.id, g); D.wcGuests.push(g);
+    D.draftPlayers.push(g.id); D.draftTeams.push(tid);
+  }
+  saveSeason();
+}
 function startWC() {
   D.phase = PH.WC;
   // последние 2 места каждой лиги покидают сезон и в Wild Card не играют
@@ -329,6 +347,7 @@ function startWC() {
   D.wcBye = all.length % 2 ? all.pop() : -1;
   D.wcQueue = []; D.wcNext = 0;
   for (let i = 0; i < all.length; i += 2) addM(ST.WC1, 0, all[i], all[i + 1]);
+  fillMissingPlayers();
 }
 function advanceWC1() {
   const ms = S.matches(ST.WC1);
