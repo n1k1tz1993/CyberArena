@@ -134,13 +134,14 @@ const PH = { Regions: 0, WC: 1, WG: 2, WQ: 3, WS: 4, WF: 5, Finished: 6 };
 const SKEY = 'ca_season_v1';
 let D;
 const fresh = (n, ht, hp, pids) => ({ number: n, phase: 0, regionState: [0, 0, 0, 0, 0], matches: [], draftPlayers: [], draftTeams: [], qualified: Array(15).fill(-1), wcQueue: [], wcNext: 0, wcWinner: -1, wcBye: -1, groups: [], champion: -1, championPlayer: '', historyTeams: ht || [], historyPlayers: hp || [], historyPids: pids || [] });
+let APP_READY = false; // до этого момента константы карьеры ещё не инициализированы
 function loadSeason() {
   D = store.get(SKEY, null);
   if (D && Array.isArray(D.wcGuests)) D.wcGuests.forEach(g => PL.set(g.id, g));
   const ok = D && Array.isArray(D.matches) && Array.isArray(D.regionState) && D.regionState.length === 5 && Array.isArray(D.draftPlayers)
     && Array.isArray(D.draftTeams) && D.draftPlayers.length === D.draftTeams.length && Array.isArray(D.qualified) && D.qualified.length === 15
     && D.matches.every(m => TM.has(m.t1) && TM.has(m.t2)) && D.draftPlayers.every(id => PL.has(id)) && D.draftTeams.every(id => TM.has(id));
-  if (!ok) { D = fresh(1); saveSeason(); } else fillMissingPlayers();
+  if (!ok) { D = fresh(1); saveSeason(); } else if (APP_READY) fillMissingPlayers();
   if (!Array.isArray(D.historyTeams)) D.historyTeams = [];
   if (!Array.isArray(D.historyPlayers)) D.historyPlayers = [];
   if (!Array.isArray(D.historyPids)) D.historyPids = [];
@@ -682,6 +683,7 @@ const careerStatus = () => !CAR ? 'создать игрока' : `${rankOf(CAR.
 const nextCareerId = () => Math.max(499, ...RET.map(o => o.id)) + 1;
 const careerPortraitOptions = () => DATA.careerPortraits && DATA.careerPortraits.length ? DATA.careerPortraits : ['pool_silhouette'];
 const careerNickPool = () => DATA.careerNicks && DATA.careerNicks.length ? DATA.careerNicks : ['Player'];
+APP_READY = true;
 const pickOne = a => a[rnd(a.length)];
 const FORMAT_NAME = { 4: 'сетка лузеров (двойное выбывание)', 8: 'Single Elimination', 10: 'швейцарская группа, плей-офф на 4', 12: 'две группы по 6', 16: 'четыре группы по 4', 32: 'DreamHack · пары, группы, плей-офф' };
 const CAREER_SIZES = [4, 8, 10, 12, 16];
@@ -1725,5 +1727,6 @@ async function cloudInit() {
   } catch (e) { CLOUD.state = 'error'; paintSync(); }
 }
 
+if (D) fillMissingPlayers();
 showMenu();
 cloudInit();
