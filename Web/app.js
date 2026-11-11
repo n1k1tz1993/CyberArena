@@ -47,7 +47,7 @@ const power = (p, t) => p.power + (t ? t.bonus : 0);
 let CAREER_ID = 500;
 const RKEY = 'ca_career_old_v1', CKEY = 'ca_career_v1';
 const CAREER_START = 30, CAREER_STEP = 5, CAREER_UNLOCK = 65, CAREER_WORLDS_POWER = 70, GUEST_BASE = 1000;
-const CAREER_KINDS = new Set(['career', 'free', 'dream']);
+const CAREER_KINDS = new Set(['career', 'free', 'dream', 'de4', 'swiss10']);
 let CAR = store.get(CKEY, null);
 let RET = store.get(RKEY, null) || [];
 if (CAR && (typeof CAR.power !== 'number' || !CAR.nick || !CAR.country || !CAR.portrait)) CAR = null;
@@ -656,9 +656,9 @@ const nextCareerId = () => Math.max(499, ...RET.map(o => o.id)) + 1;
 const careerPortraitOptions = () => DATA.careerPortraits && DATA.careerPortraits.length ? DATA.careerPortraits : ['pool_silhouette'];
 const careerNickPool = () => DATA.careerNicks && DATA.careerNicks.length ? DATA.careerNicks : ['Player'];
 const pickOne = a => a[rnd(a.length)];
-const FORMAT_NAME = { 8: 'Single Elimination', 12: 'две группы по 6', 16: 'четыре группы по 4', 32: 'DreamHack · пары, группы, плей-офф' };
+const FORMAT_NAME = { 4: 'сетка проигравших (двойное выбывание)', 8: 'Single Elimination', 10: 'швейцарская группа, плей-офф на 4', 12: 'две группы по 6', 16: 'четыре группы по 4', 32: 'DreamHack · пары, группы, плей-офф' };
 const CAREER_SIZES = [8, 12, 16];
-const tourTitle = t => t.kind === 'dream' ? 'DreamHack' : t.kind === 'free' ? `Турнир на ${t.size}` : `Карьерный турнир · ${t.size}`;
+const tourTitle = t => t.kind === 'dream' ? 'DreamHack' : t.kind === 'free' ? `Турнир на ${t.size}` : t.kind === 'de4' ? 'Турнир на 4 · сетка проигравших' : t.kind === 'swiss10' ? 'Турнир на 10 · швейцарка' : `Карьерный турнир · ${t.size}`;
 const cMini = (t, id) => {
   if (id === CAREER_ID) return `<span class="fl">${flagImg(PL.get(CAREER_ID))}</span><b class="acc ell">Ты · ${esc(CAR.nick)}</b>`;
   const p = tPlayer(t, id);
@@ -723,7 +723,9 @@ function showCareer() {
     ${ready ? '' : `<button class="btn main" ${on(showCareerProgress)}>ТУРНИР КАРЬЕРЫ<small>${CAR.tour ? 'продолжить · ' + esc(tourTitle(CAR.tour)) : 'следующий: ' + CAREER_SIZES[CAR.stage] + ' игроков'}</small></button>`}
     ${ready ? `<button class="btn main" ${on(showDream)}>DREAMHACK<small>32 игрока · победа даёт силу и 1000 очков</small></button>` : ''}
     <button class="btn" ${on(() => showLadder())}>ЛАДДЕР<small>кубик выбирает соперника и ставку</small></button>
-    <button class="btn" ${on(showFreePick)}>ТУРНИР НА ВЫБОР<small>8, 12 или 16 случайных игроков</small></button>`;
+    <button class="btn" ${on(showFreePick)}>ТУРНИР НА ВЫБОР<small>8, 12 или 16 случайных игроков</small></button>
+    <button class="btn" ${on(() => showSpecialTour('de4'))}>ТУРНИР НА 4<small>сетка проигравших · двойное выбывание</small></button>
+    <button class="btn" ${on(() => showSpecialTour('swiss10'))}>ТУРНИР НА 10<small>швейцарская группа · 4 выходят в плей-офф</small></button>`;
   screen(topbar('Карьера', showMenu) + `<div class="scroll career">${careerCard(false)}${pro}${btns}
     <div class="row2" style="grid-template-columns:1fr;margin-top:8px"><button class="btn" ${on((e, el) => { if (!el.dataset.armed) { el.dataset.armed = '1'; el.textContent = 'Точно сбросить? Прогресс исчезнет'; el.style.color = COL.bad; return; } resetCareer(); })}>СБРОСИТЬ КАРЬЕРУ</button></div>
   </div>`);
@@ -754,8 +756,16 @@ function makeTour(kind, size) {
     const id = GUEST_BASE + i, g = makeGuest(id, lo, hi, kind === 'dream' ? 65 : null);
     g.nickname = names[i % names.length]; guests[id] = g; ids.push(id);
   }
-  const t = { v3: true, kind, size, ids: shuffle(ids), guests, matches: [], champion: -1, expanded: true };
-  if (size === 8) cPlayoff8(t, [['P0', 'P1'], ['P2', 'P3'], ['P4', 'P5'], ['P6', 'P7']]);
+  const t = { v3: true, kind, size, ids: shuffle(ids), guests, matches: [], champion: -1, expanded: true, round: 0 };
+  if (kind === 'de4') { // двойное выбывание: верхняя и нижняя сетки, гранд-финал
+    cKO(t, 'S0', 'Полуфинал', 'P0', 'P1'); cKO(t, 'S1', 'Полуфинал', 'P2', 'P3');
+    cKO(t, 'W', 'Финал верхней сетки', 'W:S0', 'W:S1');
+    cKO(t, 'L0', 'Нижняя сетка · раунд 1', 'L:S0', 'L:S1');
+    cKO(t, 'L1', 'Нижняя сетка · финал', 'W:L0', 'L:W');
+    cKO(t, 'F', 'Гранд-финал', 'W:W', 'W:L1');
+  } else if (kind === 'swiss10') { // 3 раунда швейцарки, 4 лучших выходят в плей-офф (1–4 и 2–3)
+    swissRound(t, t.ids);
+  } else if (size === 8) cPlayoff8(t, [['P0', 'P1'], ['P2', 'P3'], ['P4', 'P5'], ['P6', 'P7']]);
   else if (size === 12) {
     const [A, B] = splitN(t.ids, 2);
     cRR(t, 0, A, 'Группа A', false); cRR(t, 1, B, 'Группа B', false);
@@ -778,11 +788,36 @@ function expandTour(t) {
   splitN(w, 4).forEach((L, g) => cRR(t, g, L, 'Группа ' + 'ABCD'[g], true));
   cPlayoff8(t, GROUP_PAIRS);
 }
+// швейцарка: пары раунда — по таблице, без повторной встречи, когда возможно
+const pairKey = (a, b) => Math.min(a, b) + '-' + Math.max(a, b);
+function swissRound(t, order) {
+  const r = ++t.round, seen = new Set(t.matches.filter(m => m.played).map(m => pairKey(m.t1, m.t2)));
+  const left = order.slice();
+  while (left.length) {
+    const a = left.shift();
+    let j = left.findIndex(b => !seen.has(pairKey(a, b)));
+    if (j < 0) j = 0;
+    const b = left.splice(j, 1)[0];
+    t.matches.push({ key: 'G' + t.matches.length, phase: 'grp', group: 0, label: `Раунд ${r} из 3`, t1: a, t2: b, s1: 0, s2: 0, played: false });
+  }
+}
+function swissAdvance(t) {
+  if (t.kind !== 'swiss10') return;
+  const grp = tGroupMatches(t, 0);
+  if (!grp.every(m => m.played) || t.matches.some(m => m.phase === 'ko')) return;
+  const rows = standingsOf(grp).map(r => r.team);
+  if (t.round < 3) return swissRound(t, rows);
+  const [a, b, c, d] = rows;
+  t.matches.push({ key: 'S0', phase: 'ko', label: 'Полуфинал', t1: a, t2: d, s1: 0, s2: 0, played: false });
+  t.matches.push({ key: 'S1', phase: 'ko', label: 'Полуфинал', t1: b, t2: c, s1: 0, s2: 0, played: false });
+  cKO(t, 'F', 'Финал', 'W:S0', 'W:S1');
+}
 function cReport(t, m, s1, s2) {
   if (m.played) return;
   m.s1 = s1; m.s2 = s2; m.played = true;
   if (m.t1 === CAREER_ID || m.t2 === CAREER_ID) CAR.games++;
   expandTour(t);
+  swissAdvance(t);
   if (m.key === 'F') t.champion = win(m);
   saveCareer();
 }
@@ -826,8 +861,8 @@ function careerNextHtml(t) {
 function careerGroupsHtml(t) {
   const groups = [...new Set(t.matches.filter(m => m.phase === 'grp').map(m => m.group))];
   return groups.map(g => {
-    const lbl = t.matches.find(m => m.phase === 'grp' && m.group === g).label;
-    const rows = standingsOf(tGroupMatches(t, g)).map((r, i) => `<div class="gr ${i < 2 ? 'now' : ''}"><span class="n">${i + 1}</span>${cMini(t, r.team)}<span class="pk">${r.wins}-${r.losses}</span></div>`).join('');
+    const lbl = t.kind === 'swiss10' ? 'Швейцарская группа · выходят 4' : t.matches.find(m => m.phase === 'grp' && m.group === g).label;
+    const rows = standingsOf(tGroupMatches(t, g)).map((r, i) => `<div class="gr ${i < (t.kind === 'swiss10' ? 4 : 2) ? 'now' : ''}"><span class="n">${i + 1}</span>${cMini(t, r.team)}<span class="pk">${r.wins}-${r.losses}</span></div>`).join('');
     return `<div class="gh">${esc(lbl)}</div><div class="gl">${rows}</div>`;
   }).join('');
 }
@@ -842,7 +877,7 @@ function careerBracketHtml(t, next) {
   };
   const ko = t.matches.filter(m => m.phase === 'ko');
   if (!ko.length) return '';
-  const cols = [['отбор', ko.filter(m => m.key[0] === 'R')], ['четв', ko.filter(m => m.key[0] === 'Q')], ['полу', ko.filter(m => m.key[0] === 'S')]].filter(c => c[1].length);
+  const cols = [['отбор', 'R'], ['четв', 'Q'], ['полу', 'S'], ['верх', 'W'], ['низ', 'L']].map(([title, k]) => [title, ko.filter(m => m.key[0] === k)]).filter(c => c[1].length);
   const fin = ko.filter(m => m.key === 'F');
   return `<div class="bk">
     ${cols.length ? `<div class="bk-cols">${cols.map(([title, ms]) => `<div class="bk-col"><div class="bk-h">${title}</div>${ms.map(card).join('')}</div>`).join('')}</div>` : ''}
@@ -898,6 +933,20 @@ function showDream() {
       <div class="dim cnote">32 игрока: ты и 31 случайный игрок с силой 65. Сначала пары — вылетает половина. Потом 4 группы по 4, где каждый играет с каждым дважды, и из группы выходят двое. Дальше плей-офф на 8.</div>
       <div class="dim cnote">Победа: +5 силы и 1000 очков. Выиграть можно несколько раз.</div></div>
   </div><div class="bottom"><button class="btn main" ${on(() => { CAR.tour = makeTour('dream', 32); saveCareer(); showCareerProgress(); })}>НАЧАТЬ DREAMHACK</button></div>`);
+}
+
+// ---------- особые турниры карьеры: 4 игрока с сеткой проигравших, 10 игроков по швейцарской системе ----------
+const SPECIAL = {
+  de4: { size: 4, title: 'Турнир на 4', text: 'Четыре игрока: ты и три случайных. Два полуфинала, затем сетка проигравших: проигравший полуфинала не выбывает сразу. Гранд-финал решает чемпиона. Очки и сила не начисляются.' },
+  swiss10: { size: 10, title: 'Турнир на 10', text: 'Десять игроков: ты и девять случайных. Три раунда швейцарской системы в одной группе: в каждом раунде пары подбираются по таблице. Четыре лучших выходят в плей-офф: 1 против 4 и 2 против 3, затем финал. Очки и сила не начисляются.' },
+};
+function showSpecialTour(kind) {
+  if (!CAR) return showCareerCreate();
+  const s = SPECIAL[kind];
+  const busy = CAR.tour ? `<div class="dim cnote">Сейчас идёт турнир «${esc(tourTitle(CAR.tour))}». Сначала доиграй его.</div>` : '';
+  screen(topbar(s.title, showCareer) + `<div class="scroll career">
+    <div class="cbox"><div class="cbox-h">${s.title}</div><div class="dim cnote">${s.text}</div>${busy}</div>
+  </div><div class="bottom"><button class="btn main" ${CAR.tour ? 'disabled' : on(() => { CAR.tour = makeTour(kind, s.size); saveCareer(); showCareerProgress(); })}>НАЧАТЬ ТУРНИР</button></div>`);
 }
 
 // ---------- турнир на выбор: 8, 12 или 16 случайных игроков ----------
