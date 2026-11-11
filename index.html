@@ -810,6 +810,9 @@ function advanceRegion(r) {
       const fin = S.matches(ST.Final, r), f = fin.find(m => m.kind === 0), th = fin.find(m => m.kind === 1);
       D.qualified[r * 3] = win(f); D.qualified[r * 3 + 1] = lose(f); D.qualified[r * 3 + 2] = win(th);
       D.regionState[r] = RS.Done;
+      careerTeamReward(D.qualified[r * 3], 250);
+      careerTeamReward(D.qualified[r * 3 + 1], 100);
+      careerTeamReward(D.qualified[r * 3 + 2], 100);
       if (S.allDone()) startWC();
       break;
     }
@@ -836,7 +839,7 @@ function advanceWC1() {
 }
 function startKing(queue) {
   D.wcQueue = queue;
-  if (queue.length === 1) { D.wcWinner = queue[0]; drawWorlds(); return; }
+  if (queue.length === 1) { D.wcWinner = queue[0]; careerTeamReward(D.wcWinner, 50); drawWorlds(); return; }
   D.wcNext = 2;
   addM(ST.WC, 0, queue[0], queue[1], queue.length === 2 ? 1 : 0);
 }
@@ -847,6 +850,7 @@ function advanceWC(m) {
     return;
   }
   D.wcWinner = win(m);
+  careerTeamReward(D.wcWinner, 50);
   drawWorlds();
 }
 // Посев ЧМ: в каждой группе первое место занимает чемпион одной из лиг LCK, LCS, LEC, LPL.
@@ -1456,7 +1460,9 @@ function showCareerMatch(m) {
 }
 
 // ---------- события, которые меняют карьеру ----------
-function careerWorldsWin() { CAR.power = Math.max(CAR.power, CAREER_WORLDS_POWER); addScore(150); }
+function careerWorldsWin() { CAR.power = Math.max(CAR.power, CAREER_WORLDS_POWER); addScore(500); }
+// награда рейтингом, если команда игрока заняла место в событии
+function careerTeamReward(teamId, pts) { if (CAR && CAR.lastTeam >= 0 && CAR.lastTeam === teamId) addScore(pts); }
 function careerTeamPick(pid, teamId) { if (CAR && pid === CAREER_ID) { CAR.lastTeam = teamId; saveCareer(); } }
 
 // ---------- DreamHack ----------
@@ -1515,11 +1521,22 @@ function ladderRoll() {
     opp = pickOne(DATA.players.filter(p => p.region < 5));
     if (kind === 'strongTeam') team = pickOne(ladderHighTeams());
   }
-  return { opp, team, kind, win: 100 };
+  return { opp, team, kind };
 }
-const ladderCard = L => `<div class="lad">
+// рейтинг за бой: первые 10 игр ±100; потом до 2200 победа +15 / поражение −20; от 2200 ±10
+function ladderDelta() {
+  if ((CAR.ladderGames || 0) < 10) return { win: 100, loss: 100 };
+  if (CAR.score < LADDER_TOP) return { win: 15, loss: 20 };
+  return { win: 10, loss: 10 };
+}
+const ladderCard = L => {
+  const dl = ladderDelta(), g = CAR.ladderGames || 0, bad = `style="color:${COL.bad}"`;
+  const note = g < 10 ? `Рейтинг определяется · игра ${g + 1} из 10 · победа <b class="acc">+${dl.win}</b> · поражение <b ${bad}>−${dl.loss}</b>`
+    : `Победа: <b class="acc">+${dl.win}</b> рейтинга · поражение: <b ${bad}>−${dl.loss}</b> рейтинга`;
+  return `<div class="lad">
   <div class="lad-opp">${portrait(L.opp, L.team, COL.panel2, 'sm')}<div class="car-inf"><b class="ell"><span class="fl">${flagImg(L.opp)}</span> ${esc(L.opp.nickname)}</b>${rateBadge(L.opp)}${L.team ? `<span class="dim" style="font-size:12px">${esc(L.team.name)}</span>` : ''}</div></div>
-  <div class="dim cnote">Победа: <b class="acc">+${L.win}</b> рейтинга · поражение: рейтинг не меняется</div></div>`;
+  <div class="dim cnote">${note}</div></div>`;
+};
 function showLadder(rolling) {
   if (!CAR) return showCareerCreate();
   const team = myTeam(), rk = ladderRank(CAR.score), canTeam = CAR.power >= 65;
@@ -1554,11 +1571,12 @@ function rollLadder() {
 function startLadder() {
   const L = LAD; if (!L) return;
   startMatch(PL.get(CAREER_ID), myTeam(), L.opp, L.team, 'Ладдер · бой', (s1, s2) => {
-    const won = s1 > s2, before = CAR.score;
-    if (won) addScore(L.win);
+    const won = s1 > s2, before = CAR.score, dl = ladderDelta(), placed = (CAR.ladderGames || 0) === 9;
+    addScore(won ? dl.win : -dl.loss);
+    CAR.ladderGames = (CAR.ladderGames || 0) + 1; saveCareer();
     LAD = null;
     const crossed = before < LADDER_TOP && CAR.score >= LADDER_TOP;
-    screen(topbar('Ладдер · итог', () => showLadder()) + `<div class="scroll career"><div class="car-done"><b>${won ? 'Победа!' : 'Поражение'}</b><br>${won ? '+' + L.win + ' рейтинга' : 'Рейтинг не изменился'} · сейчас ${CAR.score}${crossed ? '<br><br><b>Ты достиг вершин.</b> Теперь тебе придётся покорять Олимп.' : ''}</div></div>
+    screen(topbar('Ладдер · итог', () => showLadder()) + `<div class="scroll career"><div class="car-done"><b>${won ? 'Победа!' : 'Поражение'}</b><br>${won ? '+' + dl.win + ' рейтинга' : '−' + dl.loss + ' рейтинга'} · сейчас ${CAR.score}${placed ? '<br><b>Рейтинг определён.</b>' : ''}${crossed ? '<br><br><b>Ты достиг вершин.</b> Теперь тебе придётся покорять Олимп.' : ''}</div></div>
       <div class="bottom"><button class="btn main" ${on(() => showLadder())}>ДАЛЕЕ</button></div>`);
   }, () => showLadder(), false);
 }
@@ -1836,7 +1854,6 @@ const tName = (t, id) => t.kind === 'pro' ? TM.get(id).name : PL.get(id).nicknam
 
 function tourNew(kind, size, ids, roster) {
   const F = FORMATS[size], order = shuffle(ids);
-  if (kind === 'one' && ids.includes(CAREER_ID)) addScore(5);
   const t = { v2: true, kind, size, ids: order, matches: [], champion: -1, groups: [], roster: roster || {} };
   if (kind === 'pro') { PRO.draft = null; PRO.edition++; t.edition = PRO.edition; }
   if (F.groups) {
@@ -1886,7 +1903,8 @@ function tReport(t, m, s1, s2) {
   m.s1 = s1; m.s2 = s2; m.played = true;
   if (m.key === 'F') {
     t.champion = win(m);
-    if (t.kind === 'pro' && t.roster[t.champion] === CAREER_ID) addScore(50);
+    if (t.kind === 'pro' && t.roster[t.champion] === CAREER_ID) addScore(500);
+    if (t.kind === 'one' && t.champion === CAREER_ID) addScore(20);
     const T = tourStore(t.kind);
     if (t.kind === 'pro') T.history.push({ edition: t.edition, team: t.champion, player: t.roster[t.champion] });
     else T.history.push({ size: t.size, player: t.champion });
