@@ -813,7 +813,7 @@ function advanceRegion(r) {
 }
 // Wild Card. Первый этап: все команды без путёвки разбиваются на случайные пары, проигравшие вылетают
 // (36 → 18; при нечётном числе одна команда проходит без игры). Затем «царь горы» среди оставшихся.
-// команды вне регионов (пул) не драфтятся: перед Wild Card (и при загрузке старого сезона) им генерируется игрок по схеме карьеры
+// команды вне регионов (пул) не драфтятся: перед Wild Card (и при загрузке старого сезона) им генерируется игрок силой 45–55
 function fillMissingPlayers() {
   if (!D || !Array.isArray(D.matches)) return;
   const teams = [D.wcBye, D.wcWinner, ...(D.wcQueue || []), ...(D.groups || []), ...D.matches.flatMap(m => [m.t1, m.t2])];
@@ -822,7 +822,7 @@ function fillMissingPlayers() {
   D.wcGuests = Array.isArray(D.wcGuests) ? D.wcGuests : [];
   const names = shuffle(careerNickPool());
   for (const tid of lack) {
-    const g = makeGuest(8000 + D.wcGuests.length, 10, 35);
+    const g = makeGuest(8000 + D.wcGuests.length, 45, 55);
     g.nickname = names[D.wcGuests.length % names.length];
     g.skill = 'Уверенный новичок.';
     PL.set(g.id, g); D.wcGuests.push(g);
