@@ -1398,7 +1398,7 @@ function careerGroupsHtml(t) {
   const groups = [...new Set(t.matches.filter(m => m.phase === 'grp').map(m => m.group))];
   return groups.map(g => {
     const lbl = t.size === 10 ? 'Швейцарская группа · выходят 4' : t.matches.find(m => m.phase === 'grp' && m.group === g).label;
-    const rows = standingsOf(tGroupMatches(t, g)).map((r, i) => `<div class="gr ${i < (t.size === 10 ? 4 : 2) ? 'now' : ''}"><span class="n">${i + 1}</span>${cMini(t, r.team)}${rateBadge(tPlayer(t, r.team))}<span class="pk">${r.wins}-${r.losses}</span></div>`).join('');
+    const rows = standingsOf(tGroupMatches(t, g)).map((r, i) => `<div class="gr ${i < (t.size === 10 ? 4 : 2) ? 'now' : ''}"><span class="n">${i + 1}</span>${cMini(t, r.team)}${t.kind === 'dream' ? '' : rateBadge(tPlayer(t, r.team))}<span class="pk">${r.wins}-${r.losses}</span></div>`).join('');
     return `<div class="gh">${esc(lbl)}</div><div class="gl">${rows}</div>`;
   }).join('');
 }
