@@ -975,13 +975,12 @@ function ladderDraw() {
   return { roll, opp, team: withTeam ? pickOne(teams) : null, win: pts.win, lose: pts.lose, label };
 }
 const ladderCard = L => `<div class="lad">
-  <div class="lad-die">${L.roll}</div>
   <div class="lad-opp">${portrait(L.opp, L.team, COL.panel2, 'sm')}<div class="car-inf"><b class="ell">${esc(L.opp.nickname)}</b><span class="dim" style="font-size:12px">${esc(L.label)}</span></div></div>
   <div class="dim cnote">Победа: <b class="acc">+${L.win}</b> · поражение: <b class="bad">−${L.lose}</b> очков</div></div>`;
 function showLadder(rolling) {
   if (!CAR) return showCareerCreate();
   let body;
-  if (rolling) body = '<div class="lad"><div class="lad-die" id="die">?</div><div class="dim cnote">Кубик катится…</div></div>';
+  if (rolling) body = '<div class="lad"><div class="dim cnote lad-wait">Подбор противника…</div></div>';
   else if (LAD) body = ladderCard(LAD);
   else body = `<div class="dim cnote">Брось кубик: выпадет соперник и ставка. Очки сейчас: ${CAR.score}.</div>`;
   const bottom = rolling ? '' : `<button class="btn main" ${on(LAD ? startLadder : rollLadder)}>${LAD ? 'ИГРАТЬ БОЙ' : 'БРОСИТЬ КУБИК'}</button>`;
@@ -989,13 +988,7 @@ function showLadder(rolling) {
 }
 function rollLadder() {
   showLadder(true);
-  let k = 0;
-  const timer = setInterval(() => {
-    const el = app.querySelector('#die');
-    if (!el) { clearInterval(timer); return; }
-    el.textContent = 1 + rnd(6);
-    if (++k >= 10) { clearInterval(timer); LAD = ladderDraw(); showLadder(); }
-  }, 80);
+  setTimeout(() => { LAD = ladderDraw(); showLadder(); }, 1200);
 }
 function startLadder() {
   const L = LAD; if (!L) return;
