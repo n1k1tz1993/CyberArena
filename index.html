@@ -548,7 +548,7 @@ const power = (p, t) => p.power + (t ? t.bonus : 0);
 let CAREER_ID = 500;
 const RKEY = 'ca_career_old_v1', CKEY = 'ca_career_v1';
 const CAREER_START = 30, CAREER_STEP = 5, CAREER_UNLOCK = 65, CAREER_WORLDS_POWER = 70, GUEST_BASE = 1000;
-const CAREER_KINDS = new Set(['career', 'free', 'dream']);
+const CAREER_KINDS = new Set(['career', 'free', 'dream', 'esl4']);
 let CAR = store.get(CKEY, null);
 let RET = store.get(RKEY, null) || [];
 if (CAR && (typeof CAR.power !== 'number' || !CAR.nick || !CAR.country || !CAR.portrait)) CAR = null;
@@ -1444,9 +1444,25 @@ function showCareerProgress() {
       </div></div></div>
     <div class="cbox"><div class="cbox-h">Следующий соперник</div>${careerNextHtml(t)}</div>
     <div class="cbox"><div class="cbox-h">Сетка турнира</div>${careerGroupsHtml(t)}${careerBracketHtml(t, next)}</div>
-  </div><div class="bottom"><button class="btn main" ${on(careerContinue)}>ИГРАТЬ СЛЕДУЮЩИЙ БОЙ</button></div>`;
+  </div><div class="bottom"><button class="btn main" ${on(careerContinue)}>ИГРАТЬ СЛЕДУЮЩИЙ БОЙ</button>
+    <div class="row2" style="grid-template-columns:1fr 1fr;margin-top:8px"><button class="btn" ${on(quickFinishTour)}>Быстро досчитать<small>остальные бои сыграются сразу</small></button>
+    <button class="btn" ${on((e, el) => { if (!el.dataset.armed) { el.dataset.armed = '1'; el.textContent = 'Точно сбросить?'; el.style.color = COL.bad; return; } resetTour(); })}>Сбросить турнир<small>без очков и силы</small></button></div></div>`;
   screen(h);
 }
+// «быстро досчитать»: все матчи без игрока доигрываются сразу, в турнире остаются только твои бои
+function quickFinishTour() {
+  const t = CAR.tour; if (!t) return showCareerStart();
+  for (let g = 0; g < 500; g++) {
+    tResolve(t);
+    const m = t.matches.find(x => !x.played && x.t1 >= 0 && x.t2 >= 0 && x.t1 !== CAREER_ID && x.t2 !== CAREER_ID);
+    if (!m) break;
+    const [x, y] = simMatch(tPlayer(t, m.t1), null, tPlayer(t, m.t2), null);
+    cReport(t, m, x, y);
+  }
+  careerContinue();
+}
+// сброс текущего турнира без награды и изменения силы
+function resetTour() { CAR.tour = null; saveCareer(); showCareer(); }
 function showCareerStart() {
   const size = CAREER_SIZES[CAR.stage];
   screen(topbar('Турнир карьеры', showCareer) + `<div class="scroll career">
