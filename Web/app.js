@@ -746,9 +746,9 @@ function cPlayoff8(t, pairs) {
 function makeGuest(id, lo, hi, fixed) {
   return { id, nickname: '', country: pickOne(FLAG_LIST), portrait: pickOne(careerPortraitOptions()), power: fixed != null ? fixed : lo + rnd(hi - lo + 1), region: 5, skill: 'Гость турнира. Играет на своей силе.', guest: true };
 }
-// kind: career (от 10 до 40), free (до 50), dream (все по 65). size: 8, 12, 16 или 32
+// kind: career (от 10 до 35), free (до 50), dream (все по 65). size: 8, 12, 16 или 32
 function makeTour(kind, size) {
-  const lo = 10, hi = kind === 'free' ? 50 : 40;
+  const lo = 10, hi = kind === 'free' ? 50 : 35;
   const names = shuffle(careerNickPool()), ids = [CAREER_ID], guests = {};
   for (let i = 0; i < size - 1; i++) {
     const id = GUEST_BASE + i, g = makeGuest(id, lo, hi, kind === 'dream' ? 65 : null);
