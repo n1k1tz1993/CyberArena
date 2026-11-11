@@ -464,7 +464,7 @@ function showMenu() {
     <button class="btn b2" ${on(showSeason)}>СЕЗОН ЛИГИ<small>Сезон ${D.number} · ${esc(S.phaseName())}</small></button>
     <button class="btn bpro" ${on(showProHome)}><span class="mi"><img src="${img('esl')}" alt="">ESL PRO LEAGUE</span><small>${esc(tStatus('pro'))}</small></button>
     <button class="btn bone" ${on(showOneHome)}><span class="mi"><img src="${img('esl')}" alt="">ESL ONE</span><small>${esc(tStatus('one'))}</small></button>
-    <button class="btn bcar" ${on(showCareer)}><span class="mi">КАРЬЕРА</span><small>${esc(careerStatus())}</small></button>
+    <button class="btn bcar" ${on(showCareer)}><span class="mi"><img src="${img('career')}" alt="">КАРЬЕРА</span><small>${esc(careerStatus())}</small></button>
     <div class="row2"><button class="btn bhall" ${on(() => showHall(0))}>ЗАЛ СЛАВЫ</button><button class="btn" ${on(() => showSettings(0))}>НАСТРОЙКИ</button></div>
     ${last}
     <div class="sync" id="sync">${syncText()}</div>
@@ -714,18 +714,20 @@ function showCareerCreate(st) {
 }
 
 // ---------- хаб карьеры ----------
+// кнопка карьеры: логотип слева, название сверху и описание под ним
+const cbtn = (main, logo, title, desc, attr) => `<button class="btn cbtn ${main ? 'main' : ''}" ${attr}>${logo ? `<span class="cb-logo"><img src="${img(logo)}" alt=""></span>` : ''}<span class="tx"><b>${title}</b><small>${desc}</small></span></button>`;
 function showCareer() {
   if (!CAR) return showCareerCreate();
   const ready = careerReady();
   const pro = ready ? `<div class="pro-banner"><div class="pb-k">ПРО-ИГРОК</div><b>Ты поднялся на уровень про-игрока.</b>
       <span>Теперь тебя можно выбрать в драфте сезона, на ESL Pro League и ESL One. Очки приносят ESL One, титулы и чемпионаты, а DreamHack даёт силу и очки.</span></div>` : '';
   const btns = `
-    ${ready ? '' : `<button class="btn main" ${on(showCareerProgress)}>ТУРНИР КАРЬЕРЫ<small>${CAR.tour ? 'продолжить · ' + esc(tourTitle(CAR.tour)) : 'следующий: ' + CAREER_SIZES[CAR.stage] + ' игроков'}</small></button>`}
-    ${ready ? `<button class="btn main" ${on(showDream)}>DREAMHACK<small>32 игрока · победа даёт силу и 1000 очков</small></button>` : ''}
-    <button class="btn" ${on(() => showLadder())}>ЛАДДЕР<small>кубик выбирает соперника и ставку</small></button>
-    <button class="btn" ${on(showFreePick)}>ТУРНИР НА ВЫБОР<small>8, 12 или 16 случайных игроков</small></button>
-    <button class="btn" ${on(() => showSpecialTour('de4'))}>ТУРНИР НА 4<small>сетка проигравших · двойное выбывание</small></button>
-    <button class="btn" ${on(() => showSpecialTour('swiss10'))}>ТУРНИР НА 10<small>швейцарская группа · 4 выходят в плей-офф</small></button>`;
+    ${ready ? '' : cbtn(true, 'tourn', 'ТУРНИР КАРЬЕРЫ', CAR.tour ? 'продолжить · ' + esc(tourTitle(CAR.tour)) : 'следующий: ' + CAREER_SIZES[CAR.stage] + ' игроков', on(showCareerProgress))}
+    ${ready ? cbtn(true, 'dreamhack', 'DREAMHACK', '32 игрока · победа даёт силу и 1000 очков', on(showDream)) : ''}
+    ${cbtn(false, '', 'ЛАДДЕР', 'кубик выбирает соперника и ставку', on(() => showLadder()))}
+    ${cbtn(false, '', 'ТУРНИР НА ВЫБОР', '8, 12 или 16 случайных игроков', on(showFreePick))}
+    ${cbtn(false, '', 'ТУРНИР НА 4', 'сетка проигравших · двойное выбывание', on(() => showSpecialTour('de4')))}
+    ${cbtn(false, '', 'ТУРНИР НА 10', 'швейцарская группа · 4 выходят в плей-офф', on(() => showSpecialTour('swiss10')))}`;
   screen(topbar('Карьера', showMenu) + `<div class="scroll career">${careerCard(false)}${pro}${btns}
     <div class="row2" style="grid-template-columns:1fr;margin-top:8px"><button class="btn" ${on((e, el) => { if (!el.dataset.armed) { el.dataset.armed = '1'; el.textContent = 'Точно сбросить? Прогресс исчезнет'; el.style.color = COL.bad; return; } resetCareer(); })}>СБРОСИТЬ КАРЬЕРУ</button></div>
   </div>`);
@@ -1034,7 +1036,7 @@ function wcCard() {
     : `«царь горы» · ждут своей очереди: ${S.wcWaiting()}`;
   let right = '';
   if (done) { const t = TM.get(D.wcWinner), p = S.playerOf(D.wcWinner); right = `<div class="wcr">${logo(t)}${portrait(p, null, COL.gold)}</div>`; }
-  return `<div class="card ${locked ? 'locked' : 'tap'} ${done ? 'grey' : ''}" ${locked ? '' : on(showWildCard)}><div class="rc"><div class="tx"><b class="gold">WILD CARD</b><span class="${locked ? 'dim' : ''}">${sub}</span></div>${right}${!locked && !done ? '<span class="chev">›</span>' : ''}</div></div>`;
+  return `<div class="card ${locked ? 'locked' : 'tap'} ${done ? 'grey' : ''}" ${locked ? '' : on(showWildCard)}><div class="rc"><div class="logo"><img src="${img('wildcard')}" alt=""></div><div class="tx"><b class="gold">WILD CARD</b><span class="${locked ? 'dim' : ''}">${sub}</span></div>${right}${!locked && !done ? '<span class="chev">›</span>' : ''}</div></div>`;
 }
 function worldsCard() {
   const locked = D.phase < PH.WG;
