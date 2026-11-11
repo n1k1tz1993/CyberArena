@@ -433,3 +433,5 @@ textarea:focus { outline: 2px solid var(--accent); }
 .opp { margin: 4px 0; }
 .opp .pt { width: 84px; height: 84px; flex: 0 0 84px; }
 .mside .pt { width: 96px; height: 96px; }
+
+img.rk { width: 30px; height: 30px; flex: 0 0 30px; object-fit: contain; filter: drop-shadow(0 0 4px rgba(0,0,0,.5)); }

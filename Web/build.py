@@ -15,6 +15,7 @@ def each(d):
     return sorted(f for f in os.listdir(R+d) if f.endswith('.png'))
 for f in each('Portraits'): img[f[:-4]]=uri(Image.open(R+'Portraits/'+f).convert('RGB').resize((288,288),Image.LANCZOS),'WEBP',quality=82)
 for f in each('Logos'): img[f[:-4]]=uri(Image.open(R+'Logos/'+f).convert('RGBA').resize((160,160),Image.LANCZOS),'WEBP',quality=90)
+for f in each('Ranks'): img['rank_'+f[:-4]]=uri(Image.open(R+'Ranks/'+f).convert('RGBA'),'PNG',optimize=True)
 for f in each('Flags'): img['f_'+f[:-4]]=uri(Image.open(R+'Flags/'+f).convert('RGB'),'PNG',optimize=True)
 for f in each('Regions'): img[f[:-4]]=uri(Image.open(R+'Regions/'+f).convert('RGBA').resize((200,200),Image.LANCZOS),'WEBP',quality=90)
 img['epl']=uri(Image.open(R+'ESL/epl.png').convert('RGB'),'WEBP',quality=84)

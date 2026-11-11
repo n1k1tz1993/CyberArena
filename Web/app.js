@@ -80,6 +80,9 @@ const CRANKS = [
 const rankOf = s => { let r = CRANKS[0]; for (const x of CRANKS) if (s >= x.min) r = x; return r; };
 // значок ранга — свой силуэт на каждый ранг
 function rankIcon(r) {
+  const key = { 'Бронза': 'bronze', 'Серебро': 'silver', 'Платина': 'platinum', 'Даймонд': 'diamond', 'Мастер': 'master' }[r.name];
+  const src = key && img('rank_' + key);
+  if (src) return `<img class="rk" src="${src}" alt="${r.name}">`;
   const shapes = [
     '<path d="M12 2 L21 6 V12 C21 17 17 21 12 22 C7 21 3 17 3 12 V6 Z"/>',
     '<path d="M12 2 L20.5 7 V17 L12 22 L3.5 17 V7 Z"/>',
