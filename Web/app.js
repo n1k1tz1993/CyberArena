@@ -689,10 +689,17 @@ const FORMAT_NAME = { 4: 'сетка лузеров (двойное выбыва
 const CAREER_SIZES = [4, 8, 10, 12, 16];
 const tourName = size => size + ' игроков';
 const tourTitle = t => t.kind === 'dream' ? 'DreamHack' : t.kind === 'esl4' ? 'ESL ONE WEEKLY' : t.size === 10 ? 'Турнир на 10 · швейцарка' : t.kind === 'free' ? `Турнир на ${t.size}` : `Карьерный турнир · ${t.size}`;
+// ник гостя без приписки команды; в таблице турнира приписка «Команда.Ник» показывается отдельно
+const plainNick = (t, id) => {
+  const p = tPlayer(t, id); if (!p) return '';
+  const tm = tTeam(t, id);
+  return tm && p.nickname.startsWith(tm.name + '.') ? p.nickname.slice(tm.name.length + 1) : p.nickname;
+};
 const cMini = (t, id) => {
   if (id === CAREER_ID) return `<span class="fl">${flagImg(PL.get(CAREER_ID))}</span><b class="acc ell">${esc(CAR.nick)}</b>`;
-  const p = tPlayer(t, id);
-  return `<span class="fl">${flagImg(p)}</span><span class="ell">${esc(p.nickname)}</span>`;
+  const p = tPlayer(t, id), tm = tTeam(t, id);
+  const label = tm ? `${tm.name}.${plainNick(t, id)}` : p.nickname;
+  return `<span class="fl">${flagImg(p)}</span><span class="ell">${esc(label)}</span>`;
 };
 
 function careerCard(compact) {
@@ -793,7 +800,7 @@ function makeTour(kind, size) {
       g = { id, nickname: p.nickname, country: p.country, portrait: p.portrait, power: p.power, region: 5, skill: 'Игрок высшей лиги без команды.', guest: true };
     } else {
       g = makeGuest(id, lo, hi, kind === 'dream' ? 65 : null);
-      g.nickname = kind === 'free' ? `${pool8[i % pool8.length].name}.${names[i % names.length]}` : names[i % names.length];
+      g.nickname = names[i % names.length];
     }
     guests[id] = g; ids.push(id);
   }
@@ -901,7 +908,7 @@ function careerNextHtml(t) {
   const pm = mine[0];
   if (pm.t1 < 0 || pm.t2 < 0) return `<div class="dim cnote">${esc(pm.label)}: соперник определится после предыдущих боёв.</div>`;
   const oid = pm.t1 === CAREER_ID ? pm.t2 : pm.t1, p = tPlayer(t, oid);
-  return `<div class="opp">${portrait(p, tTeam(t, oid), COL.panel2, 'sm')}<div class="car-inf"><b class="ell">${esc(p.nickname)}</b><span class="dim" style="font-size:12px">${esc(pm.label)}</span></div></div>`;
+  return `<div class="opp">${portrait(p, tTeam(t, oid), COL.panel2, 'sm')}<div class="car-inf"><b class="ell">${esc(plainNick(t, oid))}</b><span class="dim" style="font-size:12px">${esc(tTeam(t, oid) ? tTeam(t, oid).name + ' · ' : '')}${esc(pm.label)}</span></div></div>`;
 }
 function careerGroupsHtml(t) {
   const groups = [...new Set(t.matches.filter(m => m.phase === 'grp').map(m => m.group))];
@@ -987,7 +994,7 @@ const stagePanel = m => { const st = STAGES[stageOf(m)]; return `<div class="stg
 
 function showCareerMatch(m) {
   const t = CAR.tour, mine = m.t1 === CAREER_ID || m.t2 === CAREER_ID, label = tourTitle(t) + ' · ' + m.label;
-  const side = id => { const p = tPlayer(t, id), me = id === CAREER_ID; return `<div class="mside ${me ? 'me' : ''}">${portrait(p, tTeam(t, id), me ? COL.gold : COL.panel2)}${rateBadge(p)}<b class="ell">${me ? 'Ты · ' + esc(CAR.nick) : esc(p.nickname)}</b></div>`; };
+  const side = id => { const p = tPlayer(t, id), me = id === CAREER_ID; return `<div class="mside ${me ? 'me' : ''}">${portrait(p, tTeam(t, id), me ? COL.gold : COL.panel2)}${rateBadge(p)}<b class="ell">${me ? 'Ты · ' + esc(CAR.nick) : esc(plainNick(t, id))}</b>${tTeam(t, id) && !me ? `<small class="dim ell">${esc(tTeam(t, id).name)}</small>` : ''}</div>`; };
   screen(topbar(label, showCareerProgress) + `<div class="scroll career">
     <div class="dim cnote">${esc(tourTitle(t))} · ${esc(m.label)}</div>
     <div class="cvs">${side(m.t1)}<b class="cvs-x">VS</b>${side(m.t2)}</div>
