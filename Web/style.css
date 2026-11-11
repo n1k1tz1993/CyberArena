@@ -463,3 +463,4 @@ img.rk { width: 30px; height: 30px; flex: 0 0 30px; object-fit: contain; filter:
 .rate { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #cfd6e4; white-space: nowrap; }
 .rate b { font: 600 12px var(--body); }
 .rate .rk { width: 16px; height: 16px; flex: 0 0 16px; }
+.gr .rate { flex: 0 0 auto; }
