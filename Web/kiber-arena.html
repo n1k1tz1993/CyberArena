@@ -1245,7 +1245,7 @@ function showCareer() {
   const pro = ready ? `<div class="pro-banner"><div class="pb-k">ПРО-ИГРОК</div><b>Ты поднялся на уровень про-игрока.</b>
       <span>Теперь тебя можно выбрать в драфте сезона, на ESL Pro League и ESL One. Очки приносят ESL One, титулы и чемпионаты, а DreamHack даёт силу и очки.</span></div>` : '';
   const btns = `
-    ${ready ? '' : cbtn(true, 'tourn', 'ЕЖЕНЕДЕЛЬНЫЕ ТУРНИРЫ', CAR.tour ? 'продолжить · ' + esc(tourTitle(CAR.tour)) : 'следующий: ' + tourName(CAREER_SIZES[CAR.stage]), on(showCareerProgress))}
+    ${!ready || CAR.tour ? cbtn(true, 'tourn', 'ЕЖЕНЕДЕЛЬНЫЕ ТУРНИРЫ', CAR.tour ? 'продолжить · ' + esc(tourTitle(CAR.tour)) : 'следующий: ' + tourName(CAREER_SIZES[CAR.stage]), on(showCareerProgress)) : ''}
     ${ready ? cbtn(true, 'dreamhack', 'DREAMHACK', '32 игрока · победа даёт силу и 1000 очков', on(showDream)) : ''}
     ${cbtn(false, '', 'ЛАДДЕР', 'кубик выбирает соперника и ставку', on(() => showLadder()))}
     ${CAR.power >= 50 ? cbtn(false, '', 'ТУРНИР НА ВЫБОР', '4, 8, 12 или 16 случайных игроков', on(showFreePick)) : ''}`;
@@ -1273,7 +1273,8 @@ function makeGuest(id, lo, hi, fixed) {
 }
 // kind: career (от 10 до 35), free (до 50), dream (все по 65). size: 8, 12, 16 или 32
 function makeTour(kind, size) {
-  const lo = 10, hi = kind === 'free' ? 50 : 35;
+  const lo = kind === 'free' ? 40 : 10, hi = kind === 'free' ? 55 : 35;
+  const pool8 = DATA.teams.filter(t => t.region === 5 && t.bonus === 1); // 8 команд +1 всегда участвуют в выборочных турнирах
   const names = shuffle(careerNickPool()), ids = [CAREER_ID], guests = {};
   // ESL ONE WEEKLY (esl4): три случайных игрока высшей лиги без команды; остальные турниры — только сгенерированные игроки
   const league = kind === 'esl4' ? shuffle(DATA.players.filter(p => p.region < 5)) : null;
@@ -1285,7 +1286,7 @@ function makeTour(kind, size) {
       g = { id, nickname: p.nickname, country: p.country, portrait: p.portrait, power: p.power, region: 5, skill: 'Игрок высшей лиги без команды.', guest: true };
     } else {
       g = makeGuest(id, lo, hi, kind === 'dream' ? 65 : null);
-      g.nickname = names[i % names.length];
+      g.nickname = kind === 'free' ? `${pool8[i % pool8.length].name}.${names[i % names.length]}` : names[i % names.length];
     }
     guests[id] = g; ids.push(id);
   }
@@ -1364,9 +1365,9 @@ function careerContinue() {
 function careerFinish() {
   const t = CAR.tour, won = t.champion === CAREER_ID;
   let title = tourTitle(t), txt;
-  const weeklyBonus = won && t.kind === 'esl4' ? 15 : 0; // ESL ONE WEEKLY (выбор): +15 очков за победу
+  const weeklyBonus = won ? (t.kind === 'esl4' ? 20 : t.kind === 'free' ? 25 : 0) : 0; // ESL ONE WEEKLY +20, турнир на выбор +25 очков рейтинга
   if (weeklyBonus) addScore(weeklyBonus);
-  const bonusTxt = weeklyBonus ? `<br>+${weeklyBonus} очков.` : '';
+  const bonusTxt = weeklyBonus ? `<br>+${weeklyBonus} очков рейтинга.` : '';
   if (t.kind === 'career') {
     const before = CAR.power;
     if (won) { CAR.power = Math.min(CAREER_UNLOCK, CAR.power + CAREER_STEP); CAR.wins++; }
@@ -1378,7 +1379,7 @@ function careerFinish() {
     if (won) { CAR.power += CAREER_STEP; CAR.dreamWins++; txt = '<b>DreamHack выигран!</b><br>+1000 очков и +5 силы.'; CAR.tour = null; addScore(1000); }
     else txt = '<b>DreamHack окончен.</b><br>Чемпион — другой участник.';
   } else {
-    txt = won ? `<b>Ты выиграл турнир!</b>${bonusTxt || '<br>Очки и сила не начисляются.'}` : '<b>Турнир окончен.</b><br>Чемпион — другой участник.';
+    txt = won ? `<b>Ты выиграл турнир!</b>${bonusTxt || '<br>Сила не начисляется.'}` : '<b>Турнир окончен.</b><br>Чемпион — другой участник.';
   }
   CAR.tour = null; saveCareer();
   const res = RESULT[won ? 'win' : 'lose'];
@@ -1497,8 +1498,8 @@ function showFreePick() {
   const pick = (kind, size, title, sub) => `<button class="btn" ${CAR.tour ? 'disabled' : on(() => { CAR.tour = makeTour(kind, size); saveCareer(); showCareerProgress(); })}>${title}<small>${sub}</small></button>`;
   screen(topbar('Турнир на выбор', showCareer) + `<div class="scroll career">
     <div class="cbox"><div class="cbox-h">Турнир на выбор</div>
-      <div class="dim cnote">Случайные игроки: ник, флаг, портрет и сила до 50. За такой турнир очки и сила не начисляются.</div>${busy}</div>
-    ${pick('esl4', 4, 'ESL ONE WEEKLY', 'сетка лузеров · 3 игрока высшей лиги без команды · за победу +15 очков')}
+      <div class="dim cnote">Случайные игроки с силой 40–55. За победу в турнире на выбор +25 очков рейтинга, сила не начисляется.</div>${busy}</div>
+    ${pick('esl4', 4, 'ESL ONE WEEKLY', 'сетка лузеров · 3 игрока высшей лиги без команды · за победу +20 очков рейтинга')}
     ${[8, 12, 16].map(n => pick('free', n, 'Турнир на ' + n + ' игроков', esc(FORMAT_NAME[n]))).join('')}
   </div>`);
 }
