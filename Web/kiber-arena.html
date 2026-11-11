@@ -558,7 +558,8 @@ const CRANKS = [
 const ratingOf = power => Math.round(power * 2500 / 70); // сила 70 → 2500 (алмаз), ниже — ниже по лигам
 const rankOf = s => { let r = CRANKS[0]; for (const x of CRANKS) if (s >= x.min) r = x; return r; };
 // рейтинг и значок лиги игрока (считается по силе)
-const rateBadge = p => { const rt = ratingOf(p.power || 0), r = rankOf(rt); return `<span class="rate">${rankIcon(r)}<b>${rt}</b></span>`; };
+// игрок карьеры — как в главном меню (очки), остальные — по силе
+const rateBadge = p => { const rt = p.id === CAREER_ID && CAR ? CAR.score : ratingOf(p.power || 0), r = rankOf(rt); return `<span class="rate">${rankIcon(r)}<b>${rt}</b></span>`; };
 // значок ранга — свой силуэт на каждый ранг
 function rankIcon(r) {
   const key = { 'Бронза': 'bronze', 'Серебро': 'silver', 'Золото': 'gold', 'Платина': 'platinum', 'Даймонд': 'diamond', 'Мастер': 'master' }[r.name];
