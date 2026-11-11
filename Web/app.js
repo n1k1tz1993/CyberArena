@@ -78,7 +78,10 @@ const CRANKS = [
   { min: 1801, name: 'Платина', c: '#5ED8D0' },
   { min: 2000, name: 'Даймонд', c: '#6FA8FF' },
   { min: 2501, name: 'Мастер', c: '#D08CFF' }];
+const ratingOf = power => Math.round(power * 2500 / 70); // сила 70 → 2500 (алмаз), ниже — ниже по лигам
 const rankOf = s => { let r = CRANKS[0]; for (const x of CRANKS) if (s >= x.min) r = x; return r; };
+// рейтинг и значок лиги игрока (считается по силе)
+const rateBadge = p => { const rt = ratingOf(p.power || 0), r = rankOf(rt); return `<span class="rate">${rankIcon(r)}<b>${rt}</b></span>`; };
 // значок ранга — свой силуэт на каждый ранг
 function rankIcon(r) {
   const key = { 'Бронза': 'bronze', 'Серебро': 'silver', 'Золото': 'gold', 'Платина': 'platinum', 'Даймонд': 'diamond', 'Мастер': 'master' }[r.name];
@@ -537,7 +540,7 @@ function sideHtml(n, p, t) {
   const c = n === 1 ? COL.p1 : COL.p2;
   return `<div class="side s${n}"><div class="ph">${portrait(p, t, c)}</div><div class="info">
     <div class="hp"><div class="tr"><div class="fill" style="width:100%"></div></div><span>100</span></div>
-    <div class="nk">${flagIcon(p)}<b class="ell" style="color:${c}">${esc(p.nickname)}</b></div>
+    <div class="nk">${flagIcon(p)}<b class="ell" style="color:${c}">${esc(p.nickname)}</b>${rateBadge(p)}</div>
     ${t ? teamTag(t) : ''}
     <div class="rg" style="color:${RCOL[p.region]}">${esc(REG[p.region])}</div>
     <div class="sk">${esc(p.skill)}</div>
@@ -661,7 +664,7 @@ const CAREER_SIZES = [4, 8, 10, 12, 16];
 const tourName = size => size + ' игроков';
 const tourTitle = t => t.kind === 'dream' ? 'DreamHack' : t.kind === 'esl4' ? 'ESL ONE WEEKLY' : t.size === 10 ? 'Турнир на 10 · швейцарка' : t.kind === 'free' ? `Турнир на ${t.size}` : `Карьерный турнир · ${t.size}`;
 const cMini = (t, id) => {
-  if (id === CAREER_ID) return `<span class="fl">${flagImg(PL.get(CAREER_ID))}</span><b class="acc ell">Ты · ${esc(CAR.nick)}</b>`;
+  if (id === CAREER_ID) return `<span class="fl">${flagImg(PL.get(CAREER_ID))}</span><b class="acc ell">${esc(CAR.nick)}</b>`;
   const p = tPlayer(t, id);
   return `<span class="fl">${flagImg(p)}</span><span class="ell">${esc(p.nickname)}</span>`;
 };
@@ -726,7 +729,7 @@ function showCareer() {
     ${ready ? '' : cbtn(true, 'tourn', 'ЕЖЕНЕДЕЛЬНЫЕ ТУРНИРЫ', CAR.tour ? 'продолжить · ' + esc(tourTitle(CAR.tour)) : 'следующий: ' + tourName(CAREER_SIZES[CAR.stage]), on(showCareerProgress))}
     ${ready ? cbtn(true, 'dreamhack', 'DREAMHACK', '32 игрока · победа даёт силу и 1000 очков', on(showDream)) : ''}
     ${cbtn(false, '', 'ЛАДДЕР', 'кубик выбирает соперника и ставку', on(() => showLadder()))}
-    ${cbtn(false, '', 'ТУРНИР НА ВЫБОР', '4, 8, 12 или 16 случайных игроков', on(showFreePick))}`;
+    ${CAR.power >= 50 ? cbtn(false, '', 'ТУРНИР НА ВЫБОР', '4, 8, 12 или 16 случайных игроков', on(showFreePick)) : ''}`;
   screen(topbar('Карьера', showMenu) + `<div class="scroll career">${careerCard(false)}${pro}${btns}
     <div class="row2" style="grid-template-columns:1fr;margin-top:8px"><button class="btn" ${on((e, el) => { if (!el.dataset.armed) { el.dataset.armed = '1'; el.textContent = 'Точно сбросить? Прогресс исчезнет'; el.style.color = COL.bad; return; } resetCareer(); })}>СБРОСИТЬ КАРЬЕРУ</button></div>
   </div>`);
@@ -941,7 +944,7 @@ const stagePanel = m => { const st = STAGES[stageOf(m)]; return `<div class="stg
 
 function showCareerMatch(m) {
   const t = CAR.tour, mine = m.t1 === CAREER_ID || m.t2 === CAREER_ID, label = tourTitle(t) + ' · ' + m.label;
-  const side = id => { const p = tPlayer(t, id), me = id === CAREER_ID; return `<div class="mside ${me ? 'me' : ''}">${portrait(p, null, me ? COL.gold : COL.panel2)}<b class="ell">${me ? 'Ты · ' + esc(CAR.nick) : esc(p.nickname)}</b></div>`; };
+  const side = id => { const p = tPlayer(t, id), me = id === CAREER_ID; return `<div class="mside ${me ? 'me' : ''}">${portrait(p, null, me ? COL.gold : COL.panel2)}${rateBadge(p)}<b class="ell">${me ? 'Ты · ' + esc(CAR.nick) : esc(p.nickname)}</b></div>`; };
   screen(topbar(label, showCareerProgress) + `<div class="scroll career">
     <div class="dim cnote">${esc(tourTitle(t))} · ${esc(m.label)}</div>
     <div class="cvs">${side(m.t1)}<b class="cvs-x">VS</b>${side(m.t2)}</div>
@@ -994,7 +997,7 @@ function ladderDraw() {
   return { roll, opp, team: withTeam ? pickOne(teams) : null, win: pts.win, lose: pts.lose, label };
 }
 const ladderCard = L => `<div class="lad">
-  <div class="lad-opp">${portrait(L.opp, L.team, COL.panel2, 'sm')}<div class="car-inf"><b class="ell">${esc(L.opp.nickname)}</b><span class="dim" style="font-size:12px">${esc(L.label)}</span></div></div>
+  <div class="lad-opp">${portrait(L.opp, L.team, COL.panel2, 'sm')}<div class="car-inf"><b class="ell">${esc(L.opp.nickname)}</b>${rateBadge(L.opp)}<span class="dim" style="font-size:12px">${esc(L.label)}</span></div></div>
   <div class="dim cnote">Победа: <b class="acc">+${L.win}</b> · поражение: <b class="bad">−${L.lose}</b> очков</div></div>`;
 function showLadder(rolling) {
   if (!CAR) return showCareerCreate();
@@ -1003,7 +1006,7 @@ function showLadder(rolling) {
   else if (LAD) body = ladderCard(LAD);
   else body = `<div class="dim cnote">Брось кубик: выпадет соперник и ставка. Очки сейчас: ${CAR.score}.</div>`;
   const bottom = rolling ? '' : `<button class="btn main" ${on(LAD ? startLadder : rollLadder)}>${LAD ? 'ИГРАТЬ БОЙ' : 'БРОСИТЬ КУБИК'}</button>`;
-  screen(topbar('Ладдер', showCareer) + `<div class="scroll career"><div class="cbox"><div class="cbox-h">Ладдер</div>${body}</div></div><div class="bottom">${bottom}</div>`);
+  screen(topbar('Ладдер', showCareer) + `<div class="scroll career"><div class="cbox"><img class="res-img" src="${img('stage_ladder')}" alt=""><b class="res-h">Ладдер — каждую строчку нужно заслужить</b><div class="res-t">Здесь репутацию зарабатывают в боях один на один. Каждая победа приносит рейтинговые очки и поднимает тебя выше в таблице. Чем выше рейтинг, тем громче твоё имя в лиге. На вершине закрепились профессионалы — чтобы занять их место, придётся бросить им вызов.</div>${body}</div></div><div class="bottom">${bottom}</div>`);
 }
 function rollLadder() {
   showLadder(true);
