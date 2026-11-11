@@ -901,7 +901,7 @@ function careerNextHtml(t) {
   const pm = mine[0];
   if (pm.t1 < 0 || pm.t2 < 0) return `<div class="dim cnote">${esc(pm.label)}: соперник определится после предыдущих боёв.</div>`;
   const oid = pm.t1 === CAREER_ID ? pm.t2 : pm.t1, p = tPlayer(t, oid);
-  return `<div class="opp">${portrait(p, null, COL.panel2, 'sm')}<div class="car-inf"><b class="ell">${esc(p.nickname)}</b><span class="dim" style="font-size:12px">${esc(pm.label)}</span></div></div>`;
+  return `<div class="opp">${portrait(p, tTeam(t, oid), COL.panel2, 'sm')}<div class="car-inf"><b class="ell">${esc(p.nickname)}</b><span class="dim" style="font-size:12px">${esc(pm.label)}</span></div></div>`;
 }
 function careerGroupsHtml(t) {
   const groups = [...new Set(t.matches.filter(m => m.phase === 'grp').map(m => m.group))];
@@ -987,13 +987,13 @@ const stagePanel = m => { const st = STAGES[stageOf(m)]; return `<div class="stg
 
 function showCareerMatch(m) {
   const t = CAR.tour, mine = m.t1 === CAREER_ID || m.t2 === CAREER_ID, label = tourTitle(t) + ' · ' + m.label;
-  const side = id => { const p = tPlayer(t, id), me = id === CAREER_ID; return `<div class="mside ${me ? 'me' : ''}">${portrait(p, null, me ? COL.gold : COL.panel2)}${rateBadge(p)}<b class="ell">${me ? 'Ты · ' + esc(CAR.nick) : esc(p.nickname)}</b></div>`; };
+  const side = id => { const p = tPlayer(t, id), me = id === CAREER_ID; return `<div class="mside ${me ? 'me' : ''}">${portrait(p, tTeam(t, id), me ? COL.gold : COL.panel2)}${rateBadge(p)}<b class="ell">${me ? 'Ты · ' + esc(CAR.nick) : esc(p.nickname)}</b></div>`; };
   screen(topbar(label, showCareerProgress) + `<div class="scroll career">
     <div class="dim cnote">${esc(tourTitle(t))} · ${esc(m.label)}</div>
     <div class="cvs">${side(m.t1)}<b class="cvs-x">VS</b>${side(m.t2)}</div>
     ${stagePanel(m)}
     <div class="dim cnote">${mine ? 'Твой бой. Он идёт полностью, как в обычном режиме.' : 'Бой другого участника. Смотри его так же, как свой.'}</div>
-  </div><div class="bottom"><button class="btn main" ${on(() => startMatch(tPlayer(t, m.t1), null, tPlayer(t, m.t2), null, label,
+  </div><div class="bottom"><button class="btn main" ${on(() => startMatch(tPlayer(t, m.t1), tTeam(t, m.t1), tPlayer(t, m.t2), tTeam(t, m.t2), label,
       (s1, s2) => { cReport(t, m, s1, s2); careerContinue(); }, showCareerProgress, false))}>${mine ? 'ИГРАТЬ МАТЧ' : 'СМОТРЕТЬ БОЙ'}</button></div>`);
 }
 
@@ -1387,7 +1387,9 @@ function saveTour(kind) { if (kind === 'pro') { store.set(PKEY, PRO); cloudSave(
 
 // участник → игрок / команда / подпись
 const tPlayer = (t, id) => t.kind === 'pro' ? PL.get(t.roster[id]) : CAREER_KINDS.has(t.kind) ? (id === CAREER_ID ? PL.get(CAREER_ID) : (t.guests[id] || null)) : PL.get(id);
-const tTeam = (t, id) => t.kind === 'pro' ? TM.get(id) : null;
+// команда гостя выборочного турнира: та же привязка, что и ник «Команда.Ник» (гость GUEST_BASE+i → команда i % 8)
+const choiceTeamOf = id => { const pool = DATA.teams.filter(x => x.region === 5 && x.bonus === 1); return pool[(id - GUEST_BASE) % pool.length] || null; };
+const tTeam = (t, id) => t.kind === 'pro' ? TM.get(id) : t.kind === 'free' && id !== CAREER_ID ? choiceTeamOf(id) : null;
 const tName = (t, id) => t.kind === 'pro' ? TM.get(id).name : PL.get(id).nickname;
 
 function tourNew(kind, size, ids, roster) {
