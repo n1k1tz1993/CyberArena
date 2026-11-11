@@ -985,40 +985,80 @@ function showFreePick() {
 
 // ---------- ладдер: кубик выбирает соперника и ставку ----------
 let LAD = null;
-function ladderDraw() {
-  const roll = 1 + rnd(6);
-  const strong = DATA.players.filter(p => p.region < 5), teams = DATA.teams.filter(t => t.region < 5 || t.ladder);
-  const strongOpp = roll >= 5;
-  let opp;
-  if (strongOpp) opp = pickOne(strong);
-  else { opp = makeGuest(9000 + rnd(900), 10, 60); opp.nickname = pickOne(careerNickPool()); PL.set(opp.id, opp); }
-  const withTeam = roll === 4 || roll === 6;
-  const pts = roll <= 3 ? { win: 2, lose: 3 } : roll === 4 ? { win: 3, lose: 3 } : { win: 5, lose: 5 };
-  const label = { 1: 'Игрок-гость', 2: 'Игрок-гость', 3: 'Игрок-гость', 4: 'Гость + бонус команды', 5: 'Игрок высшей лиги', 6: 'Игрок высшей лиги + команда' }[roll];
-  return { roll, opp, team: withTeam ? pickOne(teams) : null, win: pts.win, lose: pts.lose, label };
+// ---------- ладдер: рейтинг = очки карьеры; кубик за кадром ----------
+const LADDER_TOP = 2200;
+const ladderBonusTeams = () => DATA.teams.filter(t => t.bonus === 1);
+const ladderHighTeams = () => DATA.teams.filter(t => t.region < 5);
+const myTeam = () => TM.get(CAR.lastTeam) || null;
+// лига в ладдере: после 2200 рейтинга — мастер
+const ladderRank = s => s >= LADDER_TOP ? CRANKS.find(x => x.name === 'Мастер') : rankOf(s);
+function ladderGiveTeam(pool) {
+  CAR.ladderTeams = CAR.ladderTeams || [];
+  const fresh = pool.filter(t => !CAR.ladderTeams.includes(t.id));
+  if (!fresh.length) return;
+  CAR.ladderTeams.push(pickOne(fresh).id); saveCareer();
+}
+// бросок кубика за кадром: 5 и 6 дают команду игроку; после 2200 — ещё 3 и 4 меняют соперника
+function ladderRoll() {
+  const d = 1 + rnd(6), top = CAR.score >= LADDER_TOP;
+  if (d === 5) ladderGiveTeam(ladderBonusTeams());
+  if (d === 6) ladderGiveTeam(ladderHighTeams());
+  let kind = 'gen';
+  if (top && d === 3) kind = 'strong';
+  if (top && d === 4) kind = 'strongTeam';
+  let opp, team = null;
+  if (kind === 'gen') {
+    const rt = CAR.score + rnd(501) - 250;                 // рейтинг соперника: ±250 от твоего
+    const pw = clamp(Math.round(rt * 70 / 2500), 10, 60);  // сила по рейтингу, не ниже 10 и не выше 60
+    opp = makeGuest(9000 + rnd(900), 10, 60, pw); opp.nickname = pickOne(careerNickPool()); PL.set(opp.id, opp);
+  } else {
+    opp = pickOne(DATA.players.filter(p => p.region < 5));
+    if (kind === 'strongTeam') team = pickOne(ladderHighTeams());
+  }
+  return { opp, team, kind, win: 100 };
 }
 const ladderCard = L => `<div class="lad">
-  <div class="lad-opp">${portrait(L.opp, L.team, COL.panel2, 'sm')}<div class="car-inf"><b class="ell">${esc(L.opp.nickname)}</b>${rateBadge(L.opp)}<span class="dim" style="font-size:12px">${esc(L.label)}</span></div></div>
-  <div class="dim cnote">Победа: <b class="acc">+${L.win}</b> · поражение: <b class="bad">−${L.lose}</b> очков</div></div>`;
+  <div class="lad-opp">${portrait(L.opp, L.team, COL.panel2, 'sm')}<div class="car-inf"><b class="ell"><span class="fl">${flagImg(L.opp)}</span> ${esc(L.opp.nickname)}</b>${rateBadge(L.opp)}${L.team ? `<span class="dim" style="font-size:12px">${esc(L.team.name)}</span>` : ''}</div></div>
+  <div class="dim cnote">Победа: <b class="acc">+${L.win}</b> рейтинга · поражение: рейтинг не меняется</div></div>`;
 function showLadder(rolling) {
   if (!CAR) return showCareerCreate();
+  const team = myTeam(), rk = ladderRank(CAR.score), canTeam = CAR.power >= 65;
+  const teamLine = team ? `${logo(team)}<b>${esc(team.name)}</b>` : '<span class="dim">не выбрана</span>';
+  const top = CAR.score >= LADDER_TOP ? '<div class="lad-top"><b>Ты достиг вершин.</b> Теперь тебе придётся покорять Олимп.</div>' : '';
+  const meBlock = `<div class="lad-me">${portrait(PL.get(CAREER_ID), team, COL.gold, 'sm')}<div class="car-inf">
+    <b class="ell"><span class="fl">${flagImg(PL.get(CAREER_ID))}</span> ${esc(CAR.nick)}</b>
+    <span class="rate">${rankIcon(rk)}<b>${CAR.score}</b></span>
+    <span class="lad-team">Команда: ${teamLine}</span>
+    ${canTeam ? `<button class="btn lad-btn" ${on(showLadderTeams)}>ВЫБРАТЬ КОМАНДУ</button>` : '<span class="dim cnote">Выбор команды откроется с силой 65.</span>'}
+  </div></div>`;
   let body;
-  if (rolling) body = '<div class="lad"><div class="dim cnote lad-wait">Подбор противника…</div></div>';
+  if (rolling) body = '<div class="dim cnote lad-wait">Подбор противника…</div>';
   else if (LAD) body = ladderCard(LAD);
-  else body = `<div class="dim cnote">Брось кубик: выпадет соперник и ставка. Очки сейчас: ${CAR.score}.</div>`;
-  const bottom = rolling ? '' : `<button class="btn main" ${on(LAD ? startLadder : rollLadder)}>${LAD ? 'ИГРАТЬ БОЙ' : 'БРОСИТЬ КУБИК'}</button>`;
-  screen(topbar('Ладдер', showCareer) + `<div class="scroll career"><div class="cbox"><img class="res-img" src="${img('stage_ladder')}" alt=""><b class="res-h">Ладдер — каждую строчку нужно заслужить</b><div class="res-t">Здесь репутацию зарабатывают в боях один на один. Каждая победа приносит рейтинговые очки и поднимает тебя выше в таблице. Чем выше рейтинг, тем громче твоё имя в лиге. На вершине закрепились профессионалы — чтобы занять их место, придётся бросить им вызов.</div>${body}</div></div><div class="bottom">${bottom}</div>`);
+  else body = '<div class="dim cnote">Нажми «Играть», чтобы найти соперника.</div>';
+  const bottom = rolling ? '' : `<button class="btn main" ${on(LAD ? startLadder : rollLadder)}>${LAD ? 'ИГРАТЬ БОЙ' : 'ИГРАТЬ'}</button>`;
+  screen(topbar('Ладдер', showCareer) + `<div class="scroll career"><div class="cbox"><img class="res-img" src="${img('stage_ladder')}" alt=""><b class="res-h">Ладдер — каждую строчку нужно заслужить</b><div class="res-t">Здесь репутацию зарабатывают в боях один на один. Каждая победа приносит рейтинговые очки и поднимает тебя выше в таблице. Чем выше рейтинг, тем громче твоё имя в лиге. На вершине закрепились профессионалы — чтобы занять их место, придётся бросить им вызов.</div>${top}${meBlock}${body}</div></div><div class="bottom">${bottom}</div>`);
+}
+// выбор команды открыт с силой 65; в списке только команды, выпавшие в ладдере
+function showLadderTeams() {
+  if (!CAR) return showCareerCreate();
+  const list = (CAR.ladderTeams || []).map(id => TM.get(id)).filter(Boolean);
+  const rows = list.map(t => `<button class="btn lad-team-btn" ${on(() => { CAR.lastTeam = t.id; saveCareer(); showLadder(); })}>${logo(t)}<span>${esc(t.name)}</span></button>`).join('');
+  screen(topbar('Команда', () => showLadder()) + `<div class="scroll career"><div class="cbox"><div class="cbox-h">Команда</div>
+    <div class="dim cnote">Команды, которые выпали в ладдере.</div>${rows || '<div class="dim cnote">Пока ни одной команды. Они добавляются в ладдере.</div>'}
+    <button class="btn lad-team-btn" ${on(() => { CAR.lastTeam = -1; saveCareer(); showLadder(); })}><span>Без команды</span></button></div></div>`);
 }
 function rollLadder() {
   showLadder(true);
-  setTimeout(() => { LAD = ladderDraw(); showLadder(); }, 1200);
+  setTimeout(() => { LAD = ladderRoll(); showLadder(); }, 1200);
 }
 function startLadder() {
   const L = LAD; if (!L) return;
-  startMatch(PL.get(CAREER_ID), null, L.opp, L.team, 'Ладдер · бой', (s1, s2) => {
-    const won = s1 > s2, before = CAR.score, delta = won ? L.win : -L.lose;
-    addScore(delta); LAD = null;
-    screen(topbar('Ладдер · итог', () => showLadder()) + `<div class="scroll career"><div class="car-done"><b>${won ? 'Победа!' : 'Поражение'}</b><br>${delta > 0 ? '+' + delta : '−' + Math.abs(delta)} очков · было ${before}, стало ${CAR.score}.</div></div>
+  startMatch(PL.get(CAREER_ID), myTeam(), L.opp, L.team, 'Ладдер · бой', (s1, s2) => {
+    const won = s1 > s2, before = CAR.score;
+    if (won) addScore(L.win);
+    LAD = null;
+    const crossed = before < LADDER_TOP && CAR.score >= LADDER_TOP;
+    screen(topbar('Ладдер · итог', () => showLadder()) + `<div class="scroll career"><div class="car-done"><b>${won ? 'Победа!' : 'Поражение'}</b><br>${won ? '+' + L.win + ' рейтинга' : 'Рейтинг не изменился'} · сейчас ${CAR.score}${crossed ? '<br><br><b>Ты достиг вершин.</b> Теперь тебе придётся покорять Олимп.' : ''}</div></div>
       <div class="bottom"><button class="btn main" ${on(() => showLadder())}>ДАЛЕЕ</button></div>`);
   }, () => showLadder(), false);
 }

@@ -464,3 +464,17 @@ img.rk { width: 30px; height: 30px; flex: 0 0 30px; object-fit: contain; filter:
 .rate b { font: 600 12px var(--body); }
 .rate .rk { width: 16px; height: 16px; flex: 0 0 16px; }
 .gr .rate { flex: 0 0 auto; }
+
+/* ладдер: игрок и команда */
+.lad-me { display: flex; gap: 12px; align-items: center; margin: 12px 0; }
+.lad-me .car-inf { display: flex; flex-direction: column; gap: 4px; min-width: 0; align-items: flex-start; }
+.lad-me .rate { font-size: 13px; }
+.lad-team { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.lad-team .logo { width: 20px; height: 20px; }
+.lad-btn { margin-top: 4px; padding: 6px 12px; font-size: 12px; }
+.lad-top { margin: 0 0 10px; font-size: 14px; color: #f5c542; }
+.lad-team-btn { display: flex; align-items: center; justify-content: flex-start; gap: 10px; text-align: left; margin-top: 8px; }
+.lad-team-btn .logo { width: 28px; height: 28px; flex: 0 0 28px; }
+.lad-me .pt { width: 84px; height: 84px; flex: 0 0 84px; }
+.lad-me .car-inf { min-width: 0; }
+.lad-btn { align-self: flex-start; }
