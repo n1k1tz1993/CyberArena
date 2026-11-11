@@ -859,7 +859,8 @@ function careerFinish() {
     txt = won ? `<b>Ты выиграл турнир!</b>${bonusTxt || '<br>Очки и сила не начисляются.'}` : '<b>Турнир окончен.</b><br>Чемпион — другой участник.';
   }
   CAR.tour = null; saveCareer();
-  screen(topbar('Итоги · ' + title, showCareer) + `<div class="scroll career"><div class="car-done">${txt}</div></div>
+  const res = RESULT[won ? 'win' : 'lose'];
+  screen(topbar('Итоги · ' + title, showCareer) + `<div class="scroll career"><img class="res-img" src="${img(res.img)}" alt=""><b class="res-h">${res.h}</b><div class="res-t">${res.t}</div><div class="car-done">${txt}</div></div>
     <div class="bottom"><button class="btn main" ${on(showCareer)}>ДАЛЕЕ</button></div>`);
 }
 
@@ -923,12 +924,28 @@ function showCareerStart() {
       <div class="dim cnote">Соперники — случайные игроки без команд. Все бои идут на экране, и ты видишь каждый. Победа в турнире даёт шаг к про-уровню.</div></div>
   </div><div class="bottom"><button class="btn main" ${on(careerContinue)}>ИГРАТЬ ТУРНИР</button></div>`);
 }
+// тексты стадий и итогов турнира карьеры (картинки — Stages/)
+const STAGES = {
+  group: { img: 'stage_group', h: 'Имена ещё ничего не значат', t: 'На соседних аренах уже идут первые бои. Пока трибуны выбирают любимчиков, ты собираешь победы — и право пройти дальше.', p: 'Каждая победа приближает к плей-офф' },
+  quarter: { img: 'stage_quarter', h: 'Восемь претендентов. Один трофей.', t: 'Групповой этап остался позади. Теперь поражение завершит твой путь, а победа оставит тебя среди четырёх сильнейших.', p: 'Победитель выходит в полуфинал' },
+  semi: { img: 'stage_semi', h: 'В шаге от главной сцены', t: 'Шум трибун заглушает голос комментатора. До боя за титул остался один соперник — и он пришёл сюда с той же целью.', p: 'Победитель выходит в финал' },
+  final: { img: 'stage_final', h: 'Сегодня запомнят одно имя', t: 'Остальные арены погасли. Весь турнир смотрит на вас двоих, а между вами стоит кубок, ради которого начался этот путь.', p: 'Победитель становится чемпионом' },
+};
+const RESULT = {
+  win: { img: 'stage_win', h: 'Кубок твой. Ты стал сильнее.', t: 'Каждый бой закалял тебя. Сегодня ты поднял трофей и превзошёл себя прежнего.' },
+  lose: { img: 'stage_lose', h: 'Этот турнир окончен. Твой путь — нет.', t: 'Сегодня кубок достался другому. Запомни этот бой — следующая попытка начнётся с его уроков.' },
+};
+// стадия матча по его месту в сетке
+const stageOf = m => m.phase === 'grp' ? 'group' : m.key === 'F' ? 'final' : m.key[0] === 'S' || m.key[0] === 'W' || m.key[0] === 'L' ? 'semi' : m.key[0] === 'Q' ? 'quarter' : 'group';
+const stagePanel = m => { const st = STAGES[stageOf(m)]; return `<div class="stg"><img class="stg-img" src="${img(st.img)}" alt=""><div class="stg-body"><b class="stg-h">${st.h}</b><div class="stg-t">${st.t}</div><div class="stg-p">${st.p}</div></div></div>`; };
+
 function showCareerMatch(m) {
   const t = CAR.tour, mine = m.t1 === CAREER_ID || m.t2 === CAREER_ID, label = tourTitle(t) + ' · ' + m.label;
   const side = id => { const p = tPlayer(t, id), me = id === CAREER_ID; return `<div class="mside ${me ? 'me' : ''}">${portrait(p, null, me ? COL.gold : COL.panel2)}<b class="ell">${me ? 'Ты · ' + esc(CAR.nick) : esc(p.nickname)}</b></div>`; };
   screen(topbar(label, showCareerProgress) + `<div class="scroll career">
     <div class="dim cnote">${esc(tourTitle(t))} · ${esc(m.label)}</div>
     <div class="cvs">${side(m.t1)}<b class="cvs-x">VS</b>${side(m.t2)}</div>
+    ${stagePanel(m)}
     <div class="dim cnote">${mine ? 'Твой бой. Он идёт полностью, как в обычном режиме.' : 'Бой другого участника. Смотри его так же, как свой.'}</div>
   </div><div class="bottom"><button class="btn main" ${on(() => startMatch(tPlayer(t, m.t1), null, tPlayer(t, m.t2), null, label,
       (s1, s2) => { cReport(t, m, s1, s2); careerContinue(); }, showCareerProgress, false))}>${mine ? 'ИГРАТЬ МАТЧ' : 'СМОТРЕТЬ БОЙ'}</button></div>`);

@@ -447,3 +447,14 @@ img.rk { width: 30px; height: 30px; flex: 0 0 30px; object-fit: contain; filter:
 
 /* главное меню: статус карьеры на отдельной строке под словом КАРЬЕРА */
 .bcar { flex-direction: column; gap: 4px; }
+
+/* карьера: картинка и текст стадии турнира; картинка и текст итогов */
+.stg { margin: 14px 0; border-radius: 14px; overflow: hidden; background: #141b2d; border: 1px solid #2a3550; }
+.stg-img { display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; }
+.stg-body { padding: 12px 14px 14px; }
+.stg-h { display: block; font: 600 17px var(--body); margin-bottom: 6px; }
+.stg-t { font-size: 14px; line-height: 1.45; opacity: .9; }
+.stg-p { margin-top: 10px; display: inline-block; font-size: 12px; padding: 4px 10px; border-radius: 999px; background: rgba(94, 216, 208, .15); color: #5ed8d0; }
+.res-img { display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 14px; margin-bottom: 12px; }
+.res-h { display: block; font: 600 18px var(--body); margin-bottom: 8px; }
+.res-t { font-size: 14px; line-height: 1.45; opacity: .9; margin-bottom: 12px; }
