@@ -70,17 +70,18 @@ const careerReady = () => !!CAR && CAR.power >= CAREER_UNLOCK;
 const careerList = () => careerReady() ? [PL.get(CAREER_ID)] : [];
 // очки: счёт не уходит ниже нуля
 function addScore(n) { if (!CAR) return; CAR.score = Math.max(0, (CAR.score || 0) + n); saveCareer(); }
-// ранги по счёту: бронза до 500, серебро 500–1499, платина 1500–1999, даймонд 2000–2500, мастер от 2501
+// ранги по счёту: бронза до 500, серебро 500–1399, золото 1400–1800, платина 1801–1999, даймонд 2000–2500, мастер от 2501
 const CRANKS = [
   { min: 0, name: 'Бронза', c: '#C98B52' },
   { min: 500, name: 'Серебро', c: '#C9D2E0' },
-  { min: 1500, name: 'Платина', c: '#5ED8D0' },
+  { min: 1400, name: 'Золото', c: '#F5C542' },
+  { min: 1801, name: 'Платина', c: '#5ED8D0' },
   { min: 2000, name: 'Даймонд', c: '#6FA8FF' },
   { min: 2501, name: 'Мастер', c: '#D08CFF' }];
 const rankOf = s => { let r = CRANKS[0]; for (const x of CRANKS) if (s >= x.min) r = x; return r; };
 // значок ранга — свой силуэт на каждый ранг
 function rankIcon(r) {
-  const key = { 'Бронза': 'bronze', 'Серебро': 'silver', 'Платина': 'platinum', 'Даймонд': 'diamond', 'Мастер': 'master' }[r.name];
+  const key = { 'Бронза': 'bronze', 'Серебро': 'silver', 'Золото': 'gold', 'Платина': 'platinum', 'Даймонд': 'diamond', 'Мастер': 'master' }[r.name];
   const src = key && img('rank_' + key);
   if (src) return `<img class="rk" src="${src}" alt="${r.name}">`;
   const shapes = [
@@ -89,7 +90,7 @@ function rankIcon(r) {
     '<path d="M12 2 L22 12 L12 22 L2 12 Z"/>',
     '<path d="M6 3 H18 L22 9 L12 21 L2 9 Z"/>',
     '<path d="M12 1.5 L14.9 8.6 L22.5 9.2 L16.7 14.2 L18.5 21.6 L12 17.7 L5.5 21.6 L7.3 14.2 L1.5 9.2 L9.1 8.6 Z"/>'];
-  return `<svg class="rk" viewBox="0 0 24 24" aria-hidden="true" style="--rc:${r.c}"><g fill="${r.c}" stroke="#0b1020" stroke-width=".8">${shapes[CRANKS.indexOf(r)]}</g></svg>`;
+  return `<svg class="rk" viewBox="0 0 24 24" aria-hidden="true" style="--rc:${r.c}"><g fill="${r.c}" stroke="#0b1020" stroke-width=".8">${shapes[Math.min(CRANKS.indexOf(r), shapes.length - 1)]}</g></svg>`;
 }
 const FLAG_LIST = Object.keys(IMG).filter(k => k.startsWith('f_')).map(k => k.slice(2)).sort();
 syncCareer();
