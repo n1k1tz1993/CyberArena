@@ -1150,7 +1150,7 @@ const tableHead = () => '<div class="th"><span></span><span></span><span></span>
 function tableRow(place, row, mark, note) {
   const t = TM.get(row.team), p = S.playerOf(row.team);
   return `<div class="tr2"><span class="mk" style="background:${mark}"></span><span class="pl">${place}</span>${logo(t)}
-    <div class="nm"><b class="ell">${esc(t.name)}</b><small>${playerLabel(p)}${note ? ` <span style="color:${mark}">${esc(note)}</span>` : ''}</small></div>
+    <div class="nm"><b class="ell">${esc(t.name)}</b><small>${playerLabel(p)}${note ? ` <span style="color:${mark}">${esc(note)}</span>` : ''}</small>${p ? `<div class="tr2-rate">${rateBadge(p)}</div>` : ''}</div>
     <span class="c w">${row.wins}-${row.losses}</span><span class="c dim">${row.mw}:${row.ml}</span></div>`;
 }
 function matchRow(m, tag, isNext) {
@@ -1247,7 +1247,7 @@ function showWildCard() {
   if (st1.length) { h += sec(`Первый этап · ${st1.length - left1} из ${st1.length}`); st1.filter(m => !m.played).concat(st1.filter(m => m.played)).forEach(m => h += matchRow(m, null, m === next)); }
   if (D.phase === PH.WC && D.wcNext < D.wcQueue.length) {
     h += sec('Очередь');
-    D.wcQueue.slice(D.wcNext).forEach(id => { const t = TM.get(id); h += `<div class="or">${logo(t)}<span class="nm ell">${esc(t.name)} <small>${playerLabel(S.playerOf(id))} · ${esc(REG[t.region])}</small></span></div>`; });
+    D.wcQueue.slice(D.wcNext).forEach(id => { const t = TM.get(id); h += `<div class="or">${logo(t)}<span class="nm ell">${esc(t.name)} <small>${playerLabel(S.playerOf(id))}</small></span></div>`; });
   }
   h += '</div>';
   if (next) h += nextPanel(next, showWildCard, S.simWC);
@@ -1257,7 +1257,7 @@ function showWildCard() {
 function seedLabel(tid) {
   if (tid === D.wcWinner) return 'Wild Card';
   const i = D.qualified.indexOf(tid);
-  return i < 0 ? '' : `${REG_SHORT[Math.floor(i / 3)]} #${i % 3 + 1}`;
+  return ''; // регион в таблице чемпионата мира не показываем
 }
 function showWorlds() {
   const next = S.nextWorlds();

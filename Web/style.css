@@ -169,8 +169,9 @@ img { display: block; }
 .th, .tr2 { display: grid; grid-template-columns: 6px 22px 40px 1fr 44px 44px; align-items: center; gap: 8px; }
 .th { font-size: 11px; color: var(--dim); padding: 0 10px; }
 .th span:nth-child(4) { grid-column: 4; }
-.tr2 { background: var(--panel); border-radius: 12px; padding: 8px 10px; }
-.tr2 .mk { height: 32px; border-radius: 3px; }
+.tr2 { background: var(--panel); border-radius: 12px; padding: 12px 10px; }
+.tr2-rate { margin-top: 3px; font-size: 11px; }
+.tr2 .mk { height: 40px; border-radius: 3px; }
 .tr2 .pl { font: 15px var(--display); color: var(--dim); text-align: center; }
 .tr2 .logo { width: 40px; }
 .tr2 .nm { min-width: 0; }
